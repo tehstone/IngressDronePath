@@ -4,7 +4,7 @@
 // @category Tweaks
 // @version 0.5.0
 // @namespace	https://github.com/tehstone/IngressDronePath
-// @downloadURL	https://github.com/tehstone/IngressDronePath/blob/master/dronePathTravelPlanner.js
+// @downloadURL	https://github.com/tehstone/IngressDronePath/blob/master/dronePathTravelPlanner.user.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
 // @description Shows drone travel range from selected portal
 // @author tehstone
