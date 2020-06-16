@@ -2,7 +2,7 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.2.0
+// @version 0.5.0
 // @namespace	https://github.com/tehstone/IngressDronePath
 // @downloadURL	https://github.com/tehstone/IngressDronePath/blob/master/dronePathTravelPlanner.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
