@@ -2,10 +2,10 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.0.1
-// @namespace    
-// @downloadURL  
-// @homepageURL  
+// @version 0.1.0
+// @namespace    https://github.com/tehstone/IngressDronePath
+// @downloadURL  https://github.com/tehstone/IngressDronePath/blob/master/dronePathTravelPlanner.js
+// @homepageURL  https://github.com/tehstone/IngressDronePath
 // @description Shows drone travel range from selected portal
 // @author tehstone
 // @include        https://intel.ingress.com/*
