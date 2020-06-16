@@ -9,8 +9,8 @@ This script is an add-on for [Ingress Intel Total Conversion (IITC)](https://iit
 ### Install
 1. Install [IITC](https://iitc.app/download_desktop.html) from [Chrome Web Store](https://chrome.google.com/webstore/detail/iitc-button/febaefghpimpenpigafpolgljcfkeakn) or [Firefox Addons](https://addons.mozilla.org/firefox/addon/iitc-button). 
 2. Install [this plugin](https://github.com/tehstone/IngressDronePath/) by clicking [here](https://github.com/tehstone/IngressDronePath/raw/master/dronePathTravelPlanner.user.js?inline=false), then clicking the install button at the top of the new page that appears.
-3. Open the [Ingress Intel Map](https://ingress.com/intel) and mouse-over the layer chooser to verify that the "Drone Grid" layer is visible and selected. [[Example Screenshot]](https://i.imgur.com/3kR1Oxx.png)
+3. Open the [Ingress Intel Map](https://ingress.com/intel) and mouse-over the layer chooser to verify that the "Drone Grid" layer is visible and selected. [Example Screenshot](https://i.imgur.com/3kR1Oxx.png)
 
 ### Using the Plugin
 Once the plugin is installed, selecting a portal will draw a 500 meter ring around that portal and draw all Level 16 S2 grid cells that intersect with that circle
-[[Example Screenshot]](https://i.imgur.com/cwPg8tc.jpg)
+[Example Screenshot](https://i.imgur.com/cwPg8tc.jpg)
