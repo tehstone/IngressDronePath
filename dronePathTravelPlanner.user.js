@@ -2,14 +2,14 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.5.0
+// @version 0.7.0
 // @namespace	https://github.com/tehstone/IngressDronePath
 // @downloadURL	https://github.com/tehstone/IngressDronePath/blob/master/dronePathTravelPlanner.user.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
 // @description Shows drone travel range from selected portal
 // @author tehstone
 // @include		https://intel.ingress.com/*
-// @match			https://intel.ingress.com/*
+// @match		https://intel.ingress.com/*
 // @grant			none
 // ==/UserScript==
 
@@ -23,7 +23,6 @@ function wrapper(plugin_info) {
 	// and other plugins assume the same.
 	if (typeof window.plugin !== "function") window.plugin = function () {};
 
-	const thisPlugin = window.plugin;
 	const KEY_SETTINGS = "plugin-drone-path-planner-settings";
 
 	// Use own namespace for plugin
@@ -60,6 +59,9 @@ function wrapper(plugin_info) {
 	window.portalDroneIndicator	= null;
 	droneLayer = null;
 	dGridLayerGroup = null;
+	let lastPortalGuid = null;
+
+	let drawnCells = {};
 
 	map = window.map;
 	calculationMethods = 
@@ -299,27 +301,27 @@ function wrapper(plugin_info) {
 		window.addLayerGroup('Drone Grid', droneLayer, true);
 		dGridLayerGroup = L.layerGroup();
 
-		map.on('moveend', updateMapGrid);
-		const calcMethod = calculationMethods[settings.calculationMethod];
-		updateMapGrid(calcMethod["gridSize"]);
-
 		const toolbox = document.getElementById("toolbox");
 
-		const buttonWebhook = document.createElement("a");
-		buttonWebhook.textContent = "Drone Grid Settings";
-		buttonWebhook.title = "Configuration for Drone Path Plugin";
-		buttonWebhook.addEventListener("click", thisPlugin.showSettingsDialog);
-		toolbox.appendChild(buttonWebhook);
+		const buttonDrone = document.createElement("a");
+		buttonDrone.textContent = "Drone Grid Settings";
+		buttonDrone.title = "Configuration for Drone Path Plugin";
+		buttonDrone.addEventListener("click", showSettingsDialog);
+		toolbox.appendChild(buttonDrone);
 	}
 
-	thisPlugin.showSettingsDialog = function () {
+	function showSettingsDialog() {
 		const html =
 					`<p><label for="colorCircleColor">Radius Circle Color</label><br><input type="color" id="colorCircleColor" /></p>
+					 <p><label for="textCircleWidth">Radius Circle Thickness</label><br><input type="text" id="textCircleWidth" /></p>
 					 <p><label for="colorGridColor">Grid Color</label><br><input type="color" id="colorGridColor" /></p>
-					<select id="selectCalculationType">
-						<option value="500/16">500m / L16 cells</option>
-						<option value="570/17">570m / L17 cells</option>
-					</select>
+					 <p><label for="textGridWidth">Grid Line Thickness</label><br><input type="text" id="textGridWidth" /></p>
+					 <p><label for="colorHighlight">Portal Highlight Color</label><br><input type="color" id="colorHighlight" /></p>
+					 <label for="selectCalculationType">Calculation Method</label><br>
+					 <select id="selectCalculationType">
+						 <option value="500/16">500m / L16 cells</option>
+						 <option value="570/17">570m / L17 cells</option>
+					 </select>
 					 <p>
 					`;
 
@@ -340,10 +342,31 @@ function wrapper(plugin_info) {
 			saveSettings();
 		});
 
+		const textCircleWidthStr = div.querySelector("#textCircleWidth");
+		textCircleWidthStr.value = settings.circleWidth;
+		textCircleWidthStr.addEventListener("change", (e) => {
+			settings.circleWidth = textCircleWidthStr.value;
+			saveSettings();
+		});
+
 		const colorGridColorPicker = div.querySelector("#colorGridColor");
 		colorGridColorPicker.value = settings.gridColor;
 		colorGridColorPicker.addEventListener("change", (e) => {
 			settings.gridColor = colorGridColorPicker.value;
+			saveSettings();
+		});
+
+		const textGridWidthStr = div.querySelector("#textGridWidth");
+		textGridWidthStr.value = settings.gridWidth;
+		textGridWidthStr.addEventListener("change", (e) => {
+			settings.gridWidth = textGridWidthStr.value;
+			saveSettings();
+		});
+
+		const colorHighlightPicker = div.querySelector("#colorHighlight");
+		colorHighlightPicker.value = settings.portalHighlight;
+		colorHighlightPicker.addEventListener("change", (e) => {
+			settings.portalHighlight = colorHighlightPicker.value;
 			saveSettings();
 		});
 
@@ -365,12 +388,14 @@ function wrapper(plugin_info) {
 
 		if (guid) {
 			if (guid.selectedPortalGuid) {
+				lastPortalGuid = guid;
+
 				p = window.portals[guid.selectedPortalGuid];
 				const calcMethod = calculationMethods[settings.calculationMethod];
 				if (p) {
 					const coord = new LatLng(p._latlng.lat, p._latlng.lng);
 					portalDroneIndicator = L.circle(coord, calcMethod["radius"],
-						{ fill: false, color: settings.circleColor, weight: 2, interactive: false }
+						{ fill: false, color: settings.circleColor, weight: settings.circleWidth, interactive: false }
 					)
 					dGridLayerGroup.addLayer(portalDroneIndicator);
 				}
@@ -402,8 +427,8 @@ function wrapper(plugin_info) {
 
 		const zoom = map.getZoom();
 
-		if (zoom > 4) {
-			drawCellGrid(zoom, gridSize, settings.gridColor);
+		if (zoom > 8) {
+			drawCellGrid(zoom, gridSize, settings.gridColor, settings.gridWidth);
 			if (!droneLayer.hasLayer(dGridLayerGroup)) {
 				droneLayer.addLayer(dGridLayerGroup);
 			}
@@ -426,16 +451,19 @@ function wrapper(plugin_info) {
 
 			for (let n = 0; n < neighbors.length; n++) {
 				const nStr = neighbors[n].toString();
-				if (!seenCells[nStr]) {
-					seenCells[nStr] = true;
-					if (isCellinRange(neighbors[n])) {
+				if (isCellinRange(neighbors[n])) {
+					if (!seenCells[nStr]) {
+						seenCells[nStr] = true;
 						cellsToDraw.push(neighbors[n]);
 					}
 				}
 			}
 
+			drawnCells[curCell.toString()] = curCell;
 			dGridLayerGroup.addLayer(drawCell(curCell, col, thickness));
 		}
+
+		highlightPortalsInRange();
 	}
 
 	function drawCell(cell, color, weight, opacity = 90) {
@@ -448,6 +476,36 @@ function wrapper(plugin_info) {
 		const region = L.polyline([corners[0], corners[1], corners[2], corners[3], corners[0]], {fill: false, color: color, opacity: opacity, weight: weight, clickable: false, interactive: false});
 
 		return region;
+	}
+
+	function highlightPortalsInRange() {
+		const scale = portalMarkerScale();
+		//	 portal level		 0	1  2  3  4	5  6  7  8
+		const LEVEL_TO_WEIGHT = [2, 2, 2, 2, 2, 3, 3, 4, 4];
+		const LEVEL_TO_RADIUS = [7, 7, 7, 7, 8, 8, 9,10,11];
+
+		Object.keys(window.portals).forEach(function (key){
+			const portal = window.portals[key];
+			const portalLatLng = L.latLng(portal._latlng.lat, portal._latlng.lng);
+			const portalCell = S2.S2Cell.FromLatLng(getLatLngPoint(portalLatLng), calculationMethods[settings.calculationMethod]["gridSize"]);
+			if (portalCell.toString() in drawnCells) {
+				const level = Math.floor(portal["options"]["level"]||0);
+				const lvlWeight = LEVEL_TO_WEIGHT[level] * Math.sqrt(scale) + 1;
+				const lvlRadius = LEVEL_TO_RADIUS[level] * scale + 2;
+				dGridLayerGroup.addLayer(L.circleMarker(portalLatLng, { radius: lvlRadius, fill: true, color: settings.portalHighlight, weight: lvlWeight, interactive: false }
+				));
+
+			}
+		});
+		drawnCells = {};
+	}
+
+	function portalMarkerScale() {
+		const zoom = map.getZoom();
+		if (L.Browser.mobile)
+			return zoom >= 16 ? 1.5 : zoom >= 14 ? 1.2 : zoom >= 11 ? 1.0 : zoom >= 8 ? 0.65 : 0.5;
+		else
+			return zoom >= 14 ? 1 : zoom >= 11 ? 0.8 : zoom >= 8 ? 0.65 : 0.5;
 	}
 
 	function fillCell(cell, color, opacity) {
@@ -593,8 +651,11 @@ function wrapper(plugin_info) {
 
 	const defaultSettings = {
 		circleColor: "#800080",
+		circleWidth: 2,
 		gridColor: "#00FF00",
+		gridWidth: 2,
 		calculationMethod: "500/16",
+		portalHighlight: "#f228ef"
 	};
 
 	let settings = defaultSettings;
@@ -603,6 +664,7 @@ function wrapper(plugin_info) {
 		createThrottledTimer("saveSettings", function () {
 			localStorage[KEY_SETTINGS] = JSON.stringify(settings);
 		});
+		drawDroneRange(lastPortalGuid);
 	}
 
 	function loadSettings() {
@@ -611,6 +673,15 @@ function wrapper(plugin_info) {
 			settings = JSON.parse(tmp);
 		} catch (e) {
 			// eslint-disable-line no-empty
+		}
+		if (!settings.circleWidth) {
+			settings.circleWidth = "2";
+		}
+		if (!settings.gridWidth) {
+			settings.gridWidth = "2";
+		}
+		if (!settings.portalHighlight) {
+			settings.portalHighlight ="#f228ef"
 		}
 	}
 }
