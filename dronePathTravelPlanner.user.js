@@ -3,14 +3,14 @@
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
 // @version 0.2.0
-// @namespace    https://github.com/tehstone/IngressDronePath
-// @downloadURL  https://github.com/tehstone/IngressDronePath/blob/master/dronePathTravelPlanner.js
-// @homepageURL  https://github.com/tehstone/IngressDronePath
+// @namespace	https://github.com/tehstone/IngressDronePath
+// @downloadURL	https://github.com/tehstone/IngressDronePath/blob/master/dronePathTravelPlanner.js
+// @homepageURL	https://github.com/tehstone/IngressDronePath
 // @description Shows drone travel range from selected portal
 // @author tehstone
-// @include        https://intel.ingress.com/*
-// @match          https://intel.ingress.com/*
-// @grant          none
+// @include		https://intel.ingress.com/*
+// @match			https://intel.ingress.com/*
+// @grant			none
 // ==/UserScript==
 
 /* globals dialog */
@@ -24,10 +24,10 @@ function wrapper(plugin_info) {
 	if (typeof window.plugin !== "function") window.plugin = function () {};
 
 	const thisPlugin = window.plugin;
-	const KEY_SETTINGS = "plugin-pokenav-webhook-settings";
+	const KEY_SETTINGS = "plugin-drone-path-planner-settings";
 
 	// Use own namespace for plugin
-	window.plugin.SendToWebhook = function () {};
+	window.plugin.DronePathTravelPlanner = function () {};
 
 	// Name of the IITC build for first-party plugins
 	plugin_info.buildName = "DronePathTravelPlanner";
@@ -38,13 +38,35 @@ function wrapper(plugin_info) {
 	// ID/name of the plugin
 	plugin_info.pluginId = "dronepathtravelplanner";
 
-	window.portalDroneIndicator  = null;
+	const TIMERS = {};
+	function createThrottledTimer(name, callback, ms) {
+		if (TIMERS[name]) clearTimeout(TIMERS[name]);
+
+		// throttle if there are several calls to the functions
+		TIMERS[name] = setTimeout(function () {
+			delete TIMERS[name];
+			if (typeof window.requestIdleCallback == "undefined") callback();
+			// and even now, wait for iddle
+			else
+				requestIdleCallback(
+					function () {
+						callback();
+					},
+					{ timeout: 2000 }
+				);
+		}, ms || 100);
+	}
+
+	window.portalDroneIndicator	= null;
 	droneLayer = null;
 	dGridLayerGroup = null;
 
 	map = window.map;
-
-
+	calculationMethods = 
+	{
+		"500/16": {"radius": 500, "gridSize": 16},
+		"570/17": {"radius": 570, "gridSize": 17}
+	}
 
 	const d2r = Math.PI / 180.0;
 	const r2d = 180.0 / Math.PI;
@@ -266,9 +288,11 @@ function wrapper(plugin_info) {
 
 	// The entry point for this plugin.
 	function setup() {
+		loadSettings();
+
 		window.addHook(
-		  "portalSelected",
-		  window.drawDroneRange
+			"portalSelected",
+			window.drawDroneRange
 		);
 
 		droneLayer = L.layerGroup();
@@ -276,9 +300,60 @@ function wrapper(plugin_info) {
 		dGridLayerGroup = L.layerGroup();
 
 		map.on('moveend', updateMapGrid);
-		updateMapGrid();
+		const calcMethod = calculationMethods[settings.calculationMethod];
+		updateMapGrid(calcMethod["gridSize"]);
 
+		const toolbox = document.getElementById("toolbox");
+
+		const buttonWebhook = document.createElement("a");
+		buttonWebhook.textContent = "Drone Grid Settings";
+		buttonWebhook.title = "Configuration for Drone Path Plugin";
+		buttonWebhook.addEventListener("click", thisPlugin.showSettingsDialog);
+		toolbox.appendChild(buttonWebhook);
 	}
+
+	thisPlugin.showSettingsDialog = function () {
+		const html =
+					`<p><label for="colorCircleColor">Radius Circle Color</label><br><input type="color" id="colorCircleColor" /></p>
+					 <p><label for="colorGridColor">Grid Color</label><br><input type="color" id="colorGridColor" /></p>
+					<select id="selectCalculationType">
+						<option value="500/16">500m / L16 cells</option>
+						<option value="570/17">570m / L17 cells</option>
+					</select>
+					 <p>
+					`;
+
+		const width = Math.min(screen.availWidth, 420);
+		const container = dialog({
+			id: "settings",
+			width: width + "px",
+			html: html,
+			title: "Drone Path Planner Settings",
+		});
+
+		const div = container[0];
+
+		const colorCircleColorPicker = div.querySelector("#colorCircleColor");
+		colorCircleColorPicker.value = settings.circleColor;
+		colorCircleColorPicker.addEventListener("change", (e) => {
+			settings.circleColor = colorCircleColorPicker.value;
+			saveSettings();
+		});
+
+		const colorGridColorPicker = div.querySelector("#colorGridColor");
+		colorGridColorPicker.value = settings.gridColor;
+		colorGridColorPicker.addEventListener("change", (e) => {
+			settings.gridColor = colorGridColorPicker.value;
+			saveSettings();
+		});
+
+		const selectCalculationTypeOption = div.querySelector("#selectCalculationType");
+		selectCalculationTypeOption.value = settings.calculationMethod;
+		selectCalculationTypeOption.addEventListener("change", (e) => {
+			settings.calculationMethod = selectCalculationTypeOption.value;
+			saveSettings();
+		});
+	};
 
 
 	window.drawDroneRange = function (guid) {
@@ -290,15 +365,16 @@ function wrapper(plugin_info) {
 
 		if (guid) {
 			if (guid.selectedPortalGuid) {
-			  	p = window.portals[guid.selectedPortalGuid]
-			    if (p) {
-				    var coord = new LatLng(p._latlng.lat, p._latlng.lng);
-				    portalDroneIndicator = L.circle(coord, 500,
-				      { fill: false, color: 'purple', weight: 2, interactive: false }
-				    )
-				    dGridLayerGroup.addLayer(portalDroneIndicator);
+				p = window.portals[guid.selectedPortalGuid];
+				const calcMethod = calculationMethods[settings.calculationMethod];
+				if (p) {
+					const coord = new LatLng(p._latlng.lat, p._latlng.lng);
+					portalDroneIndicator = L.circle(coord, calcMethod["radius"],
+						{ fill: false, color: settings.circleColor, weight: 2, interactive: false }
+					)
+					dGridLayerGroup.addLayer(portalDroneIndicator);
 				}
-				updateMapGrid();
+				updateMapGrid(calcMethod["gridSize"]);
 			} else {
 				if (droneLayer.hasLayer(dGridLayerGroup)) {
 					droneLayer.removeLayer(dGridLayerGroup);
@@ -310,237 +386,253 @@ function wrapper(plugin_info) {
 	setup.info = plugin_info; //add the script info data to the function as a property
 	// if IITC has already booted, immediately run the 'setup' function
 	if (window.iitcLoaded) {
-	setup();
-	} else {
-	if (!window.bootPlugins) {
-	  window.bootPlugins = [];
-	}
-	window.bootPlugins.push(setup);
-	}
-}
-
-function updateMapGrid() {
-	if (!portalDroneIndicator) {
-		return;
+		setup();
+		} else {
+			if (!window.bootPlugins) {
+				window.bootPlugins = [];
+			}
+		window.bootPlugins.push(setup);
 	}
 
-	const zoom = map.getZoom();
 
-	if (zoom > 4) {
-		drawCellGrid(zoom, 16, 'red');
-		if (!droneLayer.hasLayer(dGridLayerGroup)) {
-			droneLayer.addLayer(dGridLayerGroup);
+	function updateMapGrid(gridSize) {
+		if (!portalDroneIndicator) {
+			return;
 		}
-	}
 
-}
+		const zoom = map.getZoom();
 
-function drawCellGrid(zoom, gridLevel, col, thickness = 1) {
-		const seenCells = {};
-	const cellsToDraw = [];
-	const latLng = portalDroneIndicator.getLatLng(); 
-	const cell = S2.S2Cell.FromLatLng(getLatLngPoint(latLng), gridLevel);
-	cellsToDraw.push(cell);
-	seenCells[cell.toString()] = true;
-
-	let curCell;
-	while (cellsToDraw.length > 0) {
-		curCell = cellsToDraw.pop();
-		const neighbors = curCell.getNeighbors();
-
-		for (let n = 0; n < neighbors.length; n++) {
-			const nStr = neighbors[n].toString();
-			if (!seenCells[nStr]) {
-				seenCells[nStr] = true;
-				if (isCellinRange(neighbors[n])) {
-					cellsToDraw.push(neighbors[n]);
-				}
+		if (zoom > 4) {
+			drawCellGrid(zoom, gridSize, settings.gridColor);
+			if (!droneLayer.hasLayer(dGridLayerGroup)) {
+				droneLayer.addLayer(dGridLayerGroup);
 			}
 		}
 
-		dGridLayerGroup.addLayer(drawCell(curCell, col, thickness));
 	}
-}
 
-function drawCell(cell, color, weight, opacity = 90) {
-	// corner points
-	const corners = cell.getCornerLatLngs();
+	function drawCellGrid(zoom, gridLevel, col, thickness = 1) {
+		const seenCells = {};
+		const cellsToDraw = [];
+		const latLng = portalDroneIndicator.getLatLng(); 
+		const cell = S2.S2Cell.FromLatLng(getLatLngPoint(latLng), gridLevel);
+		cellsToDraw.push(cell);
+		seenCells[cell.toString()] = true;
 
-	// the level 6 cells have noticible errors with non-geodesic lines - and the larger level 4 cells are worse
-	// NOTE: we only draw two of the edges. as we draw all cells on screen, the other two edges will either be drawn
-	// from the other cell, or be off screen so we don't care
-	const region = L.polyline([corners[0], corners[1], corners[2], corners[3], corners[0]], {fill: false, color: color, opacity: opacity, weight: weight, clickable: false, interactive: false});
+		let curCell;
+		while (cellsToDraw.length > 0) {
+			curCell = cellsToDraw.pop();
+			const neighbors = curCell.getNeighbors();
 
-	return region;
-}
+			for (let n = 0; n < neighbors.length; n++) {
+				const nStr = neighbors[n].toString();
+				if (!seenCells[nStr]) {
+					seenCells[nStr] = true;
+					if (isCellinRange(neighbors[n])) {
+						cellsToDraw.push(neighbors[n]);
+					}
+				}
+			}
 
-function fillCell(cell, color, opacity) {
-	// corner points
-	const corners = cell.getCornerLatLngs();
-
-	const region = L.polygon(corners, {color: color, fillOpacity: opacity, weight: 0, clickable: false, interactive: false});
-
-	return region;
-}
-
-function isCellinRange(cell) {
-    const circlePoints = portalDroneIndicator.getLatLng(); 
-    const corners = cell.getCornerLatLngs();
-    for (let i = 0; i < corners.length; i++) {
-		if (haversine(corners[i].lat, corners[i].lng, circlePoints.lat, circlePoints.lng) < 500) {
-			return true;
+			dGridLayerGroup.addLayer(drawCell(curCell, col, thickness));
 		}
 	}
-	return false;
-    
-};
 
-function check_a_point(a, b, x, y, r) {
-    var dist_points = (a - x) * (a - x) + (b - y) * (b - y);
-    r *= r;
-    if (dist_points < r) {
-        return true;
-    }
-    return false;
-}
+	function drawCell(cell, color, weight, opacity = 90) {
+		// corner points
+		const corners = cell.getCornerLatLngs();
 
-function haversine(lat1, lon1, lat2, lon2) {
-	const R = 6371e3; // metres
-	const φ1 = lat1 * Math.PI/180; // φ, λ in radians
-	const φ2 = lat2 * Math.PI/180;
-	const Δφ = (lat2-lat1) * Math.PI/180;
-	const Δλ = (lon2-lon1) * Math.PI/180;
+		// the level 6 cells have noticible errors with non-geodesic lines - and the larger level 4 cells are worse
+		// NOTE: we only draw two of the edges. as we draw all cells on screen, the other two edges will either be drawn
+		// from the other cell, or be off screen so we don't care
+		const region = L.polyline([corners[0], corners[1], corners[2], corners[3], corners[0]], {fill: false, color: color, opacity: opacity, weight: weight, clickable: false, interactive: false});
 
-	const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-	          Math.cos(φ1) * Math.cos(φ2) *
-	          Math.sin(Δλ/2) * Math.sin(Δλ/2);
-	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+		return region;
+	}
 
-	return R * c; // in metres
-}
+	function fillCell(cell, color, opacity) {
+		// corner points
+		const corners = cell.getCornerLatLngs();
 
-function getLatLngPoint(data) {
-	const result = {
-		lat: typeof data.lat == 'function' ? data.lat() : data.lat,
-		lng: typeof data.lng == 'function' ? data.lng() : data.lng
+		const region = L.polygon(corners, {color: color, fillOpacity: opacity, weight: 0, clickable: false, interactive: false});
+
+		return region;
+	}
+
+	function isCellinRange(cell) {
+		const circlePoints = portalDroneIndicator.getLatLng(); 
+		const corners = cell.getCornerLatLngs();
+		for (let i = 0; i < corners.length; i++) {
+			if (haversine(corners[i].lat, corners[i].lng, circlePoints.lat, circlePoints.lng) < calculationMethods[settings.calculationMethod]["radius"]) {
+				return true;
+			}
+		}
+		return false;
+		
 	};
 
-	return result;
+	function haversine(lat1, lon1, lat2, lon2) {
+		const R = 6371e3; // metres
+		const φ1 = lat1 * Math.PI/180; // φ, λ in radians
+		const φ2 = lat2 * Math.PI/180;
+		const Δφ = (lat2-lat1) * Math.PI/180;
+		const Δλ = (lon2-lon1) * Math.PI/180;
+
+		const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+					Math.cos(φ1) * Math.cos(φ2) *
+					Math.sin(Δλ/2) * Math.sin(Δλ/2);
+		const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+		return R * c; // in metres
+	}
+
+	function getLatLngPoint(data) {
+		const result = {
+			lat: typeof data.lat == 'function' ? data.lat() : data.lat,
+			lng: typeof data.lng == 'function' ? data.lng() : data.lng
+		};
+
+		return result;
+	}
+
+	/* @class LatLng
+	 * @aka L.LatLng
+	 *
+	 * Represents a geographical point with a certain latitude and longitude.
+	 *
+	 * @example
+	 *
+	 * ```
+	 * var latlng = L.latLng(50.5, 30.5);
+	 * ```
+	 *
+	 * All Leaflet methods that accept LatLng objects also accept them in a simple Array form and simple object form (unless noted otherwise), so these lines are equivalent:
+	 *
+	 * ```
+	 * map.panTo([50, 30]);
+	 * map.panTo({lon: 30, lat: 50});
+	 * map.panTo({lat: 50, lng: 30});
+	 * map.panTo(L.latLng(50, 30));
+	 * ```
+	 *
+	 * Note that `LatLng` does not inherit from Leaflet's `Class` object,
+	 * which means new classes can't inherit from it, and new methods
+	 * can't be added to it with the `include` function.
+	 */
+
+	function LatLng(lat, lng, alt) {
+		if (isNaN(lat) || isNaN(lng)) {
+			throw new Error('Invalid LatLng object: (' + lat + ', ' + lng + ')');
+		}
+
+		// @property lat: Number
+		// Latitude in degrees
+		this.lat = +lat;
+
+		// @property lng: Number
+		// Longitude in degrees
+		this.lng = +lng;
+
+		// @property alt: Number
+		// Altitude in meters (optional)
+		if (alt !== undefined) {
+			this.alt = +alt;
+		}
+	}
+
+	LatLng.prototype = {
+		// @method equals(otherLatLng: LatLng, maxMargin?: Number): Boolean
+		// Returns `true` if the given `LatLng` point is at the same position (within a small margin of error). The margin of error can be overridden by setting `maxMargin` to a small number.
+		equals: function (obj, maxMargin) {
+			if (!obj) { return false; }
+
+			obj = toLatLng(obj);
+
+			var margin = Math.max(
+					Math.abs(this.lat - obj.lat),
+					Math.abs(this.lng - obj.lng));
+
+			return margin <= (maxMargin === undefined ? 1.0E-9 : maxMargin);
+		},
+
+		// @method toString(): String
+		// Returns a string representation of the point (for debugging purposes).
+		toString: function (precision) {
+			return 'LatLng(' +
+					formatNum(this.lat, precision) + ', ' +
+					formatNum(this.lng, precision) + ')';
+		},
+
+		// @method distanceTo(otherLatLng: LatLng): Number
+		// Returns the distance (in meters) to the given `LatLng` calculated using the [Spherical Law of Cosines](https://en.wikipedia.org/wiki/Spherical_law_of_cosines).
+		distanceTo: function (other) {
+			return Earth.distance(this, toLatLng(other));
+		},
+
+		// @method wrap(): LatLng
+		// Returns a new `LatLng` object with the longitude wrapped so it's always between -180 and +180 degrees.
+		wrap: function () {
+			return Earth.wrapLatLng(this);
+		},
+
+		// @method toBounds(sizeInMeters: Number): LatLngBounds
+		// Returns a new `LatLngBounds` object in which each boundary is `sizeInMeters/2` meters apart from the `LatLng`.
+		toBounds: function (sizeInMeters) {
+			var latAccuracy = 180 * sizeInMeters / 40075017,
+				lngAccuracy = latAccuracy / Math.cos((Math.PI / 180) * this.lat);
+
+			return toLatLngBounds(
+					[this.lat - latAccuracy, this.lng - lngAccuracy],
+					[this.lat + latAccuracy, this.lng + lngAccuracy]);
+		},
+
+		clone: function () {
+			return new LatLng(this.lat, this.lng, this.alt);
+		}
+	};
+
+	const defaultSettings = {
+		circleColor: "#800080",
+		gridColor: "#00FF00",
+		calculationMethod: "500/16",
+	};
+
+	let settings = defaultSettings;
+
+	function saveSettings() {
+		createThrottledTimer("saveSettings", function () {
+			localStorage[KEY_SETTINGS] = JSON.stringify(settings);
+		});
+	}
+
+	function loadSettings() {
+		const tmp = localStorage[KEY_SETTINGS];
+		try {
+			settings = JSON.parse(tmp);
+		} catch (e) {
+			// eslint-disable-line no-empty
+		}
+	}
 }
 
-/* @class LatLng
- * @aka L.LatLng
- *
- * Represents a geographical point with a certain latitude and longitude.
- *
- * @example
- *
- * ```
- * var latlng = L.latLng(50.5, 30.5);
- * ```
- *
- * All Leaflet methods that accept LatLng objects also accept them in a simple Array form and simple object form (unless noted otherwise), so these lines are equivalent:
- *
- * ```
- * map.panTo([50, 30]);
- * map.panTo({lon: 30, lat: 50});
- * map.panTo({lat: 50, lng: 30});
- * map.panTo(L.latLng(50, 30));
- * ```
- *
- * Note that `LatLng` does not inherit from Leaflet's `Class` object,
- * which means new classes can't inherit from it, and new methods
- * can't be added to it with the `include` function.
- */
-
-function LatLng(lat, lng, alt) {
-	if (isNaN(lat) || isNaN(lng)) {
-		throw new Error('Invalid LatLng object: (' + lat + ', ' + lng + ')');
-	}
-
-	// @property lat: Number
-	// Latitude in degrees
-	this.lat = +lat;
-
-	// @property lng: Number
-	// Longitude in degrees
-	this.lng = +lng;
-
-	// @property alt: Number
-	// Altitude in meters (optional)
-	if (alt !== undefined) {
-		this.alt = +alt;
-	}
-}
-
-LatLng.prototype = {
-	// @method equals(otherLatLng: LatLng, maxMargin?: Number): Boolean
-	// Returns `true` if the given `LatLng` point is at the same position (within a small margin of error). The margin of error can be overridden by setting `maxMargin` to a small number.
-	equals: function (obj, maxMargin) {
-		if (!obj) { return false; }
-
-		obj = toLatLng(obj);
-
-		var margin = Math.max(
-		        Math.abs(this.lat - obj.lat),
-		        Math.abs(this.lng - obj.lng));
-
-		return margin <= (maxMargin === undefined ? 1.0E-9 : maxMargin);
-	},
-
-	// @method toString(): String
-	// Returns a string representation of the point (for debugging purposes).
-	toString: function (precision) {
-		return 'LatLng(' +
-		        formatNum(this.lat, precision) + ', ' +
-		        formatNum(this.lng, precision) + ')';
-	},
-
-	// @method distanceTo(otherLatLng: LatLng): Number
-	// Returns the distance (in meters) to the given `LatLng` calculated using the [Spherical Law of Cosines](https://en.wikipedia.org/wiki/Spherical_law_of_cosines).
-	distanceTo: function (other) {
-		return Earth.distance(this, toLatLng(other));
-	},
-
-	// @method wrap(): LatLng
-	// Returns a new `LatLng` object with the longitude wrapped so it's always between -180 and +180 degrees.
-	wrap: function () {
-		return Earth.wrapLatLng(this);
-	},
-
-	// @method toBounds(sizeInMeters: Number): LatLngBounds
-	// Returns a new `LatLngBounds` object in which each boundary is `sizeInMeters/2` meters apart from the `LatLng`.
-	toBounds: function (sizeInMeters) {
-		var latAccuracy = 180 * sizeInMeters / 40075017,
-		    lngAccuracy = latAccuracy / Math.cos((Math.PI / 180) * this.lat);
-
-		return toLatLngBounds(
-		        [this.lat - latAccuracy, this.lng - lngAccuracy],
-		        [this.lat + latAccuracy, this.lng + lngAccuracy]);
-	},
-
-	clone: function () {
-		return new LatLng(this.lat, this.lng, this.alt);
-	}
-};
 
 (function () {
 	const plugin_info = {};
 	if (typeof GM_info !== 'undefined' && GM_info && GM_info.script) {
-	plugin_info.script = {
-	  version: GM_info.script.version,
-	  name: GM_info.script.name,
-	  description: GM_info.script.description
-	};
+		plugin_info.script = {
+			version: GM_info.script.version,
+			name: GM_info.script.name,
+			description: GM_info.script.description
+		};
 	}
 	// Greasemonkey. It will be quite hard to debug
 	if (typeof unsafeWindow != 'undefined' || typeof GM_info == 'undefined' || GM_info.scriptHandler != 'Tampermonkey') {
 	// inject code into site context
-	const script = document.createElement('script');
-	script.appendChild(document.createTextNode('(' + wrapper + ')(' + JSON.stringify(plugin_info) + ');'));
-	(document.body || document.head || document.documentElement).appendChild(script);
+		const script = document.createElement('script');
+		script.appendChild(document.createTextNode('(' + wrapper + ')(' + JSON.stringify(plugin_info) + ');'));
+		(document.body || document.head || document.documentElement).appendChild(script);
 	} else {
-	// Tampermonkey, run code directly
-	wrapper(plugin_info);
+		// Tampermonkey, run code directly
+		wrapper(plugin_info);
 	}
 })();
