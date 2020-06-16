@@ -2,7 +2,7 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.7.0
+// @version 0.7.5
 // @namespace	https://github.com/tehstone/IngressDronePath
 // @downloadURL	https://github.com/tehstone/IngressDronePath/blob/master/dronePathTravelPlanner.user.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
@@ -323,6 +323,9 @@ function wrapper(plugin_info) {
 						 <option value="570/17">570m / L17 cells</option>
 					 </select>
 					 <p>
+					 Please note that neither of these methods are completely accurate. More investigation into the specifics of which portals will be in range is still needed.
+					 </p>
+					 <a onclick="window.resetSettings();return false;" title="Restores settings to default state">Reset to Defaults</a>
 					`;
 
 		const width = Math.min(screen.availWidth, 420);
@@ -683,6 +686,11 @@ function wrapper(plugin_info) {
 		if (!settings.portalHighlight) {
 			settings.portalHighlight ="#f228ef"
 		}
+	}
+
+	window.resetSettings = function() {
+		settings = JSON.parse(JSON.stringify(defaultSettings));
+		showSettingsDialog();
 	}
 }
 
