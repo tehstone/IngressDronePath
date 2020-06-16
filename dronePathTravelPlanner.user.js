@@ -2,7 +2,7 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.7.5
+// @version 0.8.0
 // @namespace	https://github.com/tehstone/IngressDronePath
 // @downloadURL	https://github.com/tehstone/IngressDronePath/blob/master/dronePathTravelPlanner.user.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
@@ -57,6 +57,7 @@ function wrapper(plugin_info) {
 	}
 
 	window.portalDroneIndicator	= null;
+	window.portalDroneIndicatorKey = null;
 	droneLayer = null;
 	dGridLayerGroup = null;
 	let lastPortalGuid = null;
@@ -317,6 +318,7 @@ function wrapper(plugin_info) {
 					 <p><label for="colorGridColor">Grid Color</label><br><input type="color" id="colorGridColor" /></p>
 					 <p><label for="textGridWidth">Grid Line Thickness</label><br><input type="text" id="textGridWidth" /></p>
 					 <p><label for="colorHighlight">Portal Highlight Color</label><br><input type="color" id="colorHighlight" /></p>
+					 <p><label for="cbKeyRange">Display theoretical key range</label><br><input type="checkbox" id="cbKeyRange" /></p>
 					 <label for="selectCalculationType">Calculation Method</label><br>
 					 <select id="selectCalculationType">
 						 <option value="500/16">500m / L16 cells</option>
@@ -379,14 +381,19 @@ function wrapper(plugin_info) {
 			settings.calculationMethod = selectCalculationTypeOption.value;
 			saveSettings();
 		});
+
+		const keyRangeCB = div.querySelector("#cbKeyRange");
+		keyRangeCB.checked = settings.keyRange;
+		keyRangeCB.addEventListener("change", (e) => {
+			settings.keyRange = keyRangeCB.checked;
+			saveSettings();
+		});
 	};
 
 
 	window.drawDroneRange = function (guid) {
-		if (portalDroneIndicator) {
-			map.removeLayer(portalDroneIndicator);
-		}
 		portalDroneIndicator = null;
+		portalDroneIndicatorKey = null;
 		dGridLayerGroup.clearLayers();
 
 		if (guid) {
@@ -401,6 +408,12 @@ function wrapper(plugin_info) {
 						{ fill: false, color: settings.circleColor, weight: settings.circleWidth, interactive: false }
 					)
 					dGridLayerGroup.addLayer(portalDroneIndicator);
+					if (settings.keyRange) {
+						portalDroneIndicatorKey = L.circle(coord, calcMethod["radius"] * 2,
+						{ fill: false, color: settings.circleColor, weight: settings.circleWidth, interactive: false }
+					)
+						dGridLayerGroup.addLayer(portalDroneIndicatorKey);
+					}
 				}
 				updateMapGrid(calcMethod["gridSize"]);
 			} else {
@@ -658,7 +671,8 @@ function wrapper(plugin_info) {
 		gridColor: "#00FF00",
 		gridWidth: 2,
 		calculationMethod: "500/16",
-		portalHighlight: "#f228ef"
+		portalHighlight: "#f228ef",
+		keyRange: false,
 	};
 
 	let settings = defaultSettings;
@@ -685,6 +699,9 @@ function wrapper(plugin_info) {
 		}
 		if (!settings.portalHighlight) {
 			settings.portalHighlight ="#f228ef"
+		}
+		if (!"keyRange" in settings) {
+			settings.keyRange =false
 		}
 	}
 
