@@ -2,7 +2,7 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.1.0
+// @version 0.2.0
 // @namespace    https://github.com/tehstone/IngressDronePath
 // @downloadURL  https://github.com/tehstone/IngressDronePath/blob/master/dronePathTravelPlanner.js
 // @homepageURL  https://github.com/tehstone/IngressDronePath
@@ -282,18 +282,29 @@ function wrapper(plugin_info) {
 
 
 	window.drawDroneRange = function (guid) {
-		if (guid && guid.selectedPortalGuid) {
-	  	p = window.portals[guid.selectedPortalGuid]
-	    if (portalDroneIndicator) map.removeLayer(portalDroneIndicator);
-	    portalDroneIndicator = null;
-	    if (p) {
-		    var coord = new LatLng(p._latlng.lat, p._latlng.lng);
-		    portalDroneIndicator = L.circle(coord, 500,
-		      { fill: false, color: 'purple', weight: 2, interactive: false }
-		    ).addTo(map);
+		if (portalDroneIndicator) {
+			map.removeLayer(portalDroneIndicator);
 		}
-		updateMapGrid();
-	}
+		portalDroneIndicator = null;
+		dGridLayerGroup.clearLayers();
+
+		if (guid) {
+			if (guid.selectedPortalGuid) {
+			  	p = window.portals[guid.selectedPortalGuid]
+			    if (p) {
+				    var coord = new LatLng(p._latlng.lat, p._latlng.lng);
+				    portalDroneIndicator = L.circle(coord, 500,
+				      { fill: false, color: 'purple', weight: 2, interactive: false }
+				    )
+				    dGridLayerGroup.addLayer(portalDroneIndicator);
+				}
+				updateMapGrid();
+			} else {
+				if (droneLayer.hasLayer(dGridLayerGroup)) {
+					droneLayer.removeLayer(dGridLayerGroup);
+				}
+			}
+		}
 	};
 
 	setup.info = plugin_info; //add the script info data to the function as a property
@@ -309,8 +320,6 @@ function wrapper(plugin_info) {
 }
 
 function updateMapGrid() {
-	console.log("updateMapGrid0");
-
 	if (!portalDroneIndicator) {
 		return;
 	}
@@ -327,34 +336,29 @@ function updateMapGrid() {
 }
 
 function drawCellGrid(zoom, gridLevel, col, thickness = 1) {
-	dGridLayerGroup.clearLayers();
-
-	const seenCells = {};
+		const seenCells = {};
 	const cellsToDraw = [];
+	const latLng = portalDroneIndicator.getLatLng(); 
+	const cell = S2.S2Cell.FromLatLng(getLatLngPoint(latLng), gridLevel);
+	cellsToDraw.push(cell);
+	seenCells[cell.toString()] = true;
 
-	if (gridLevel >= 6 && gridLevel < (zoom + 2)) {
-		const latLng = portalDroneIndicator.getLatLng(); 
-		const cell = S2.S2Cell.FromLatLng(getLatLngPoint(latLng), gridLevel);
-		cellsToDraw.push(cell);
-		seenCells[cell.toString()] = true;
+	let curCell;
+	while (cellsToDraw.length > 0) {
+		curCell = cellsToDraw.pop();
+		const neighbors = curCell.getNeighbors();
 
-		let curCell;
-		while (cellsToDraw.length > 0) {
-			curCell = cellsToDraw.pop();
-			const neighbors = curCell.getNeighbors();
-
-			for (let n = 0; n < neighbors.length; n++) {
-				const nStr = neighbors[n].toString();
-				if (!seenCells[nStr]) {
-					seenCells[nStr] = true;
-					if (isCellinRange(neighbors[n])) {
-						cellsToDraw.push(neighbors[n]);
-					}
+		for (let n = 0; n < neighbors.length; n++) {
+			const nStr = neighbors[n].toString();
+			if (!seenCells[nStr]) {
+				seenCells[nStr] = true;
+				if (isCellinRange(neighbors[n])) {
+					cellsToDraw.push(neighbors[n]);
 				}
 			}
-
-			dGridLayerGroup.addLayer(drawCell(curCell, col, thickness));
 		}
+
+		dGridLayerGroup.addLayer(drawCell(curCell, col, thickness));
 	}
 }
 
@@ -414,21 +418,6 @@ function haversine(lat1, lon1, lat2, lon2) {
 
 	return R * c; // in metres
 }
-
-// function isCellinRange(cell) {
-// 	const corners = cell.getCornerLatLngs();
-// 	const center = cell.getLatLng();
-// 	const latlng = L.latLng(center.lat, center.lng);
-// 	console.log(latlng);
-// 	return latlng.intersects(portalDroneIndicator.getBounds());
-// 	const cellBounds = L.latLngBounds([corners[0],corners[1]]).extend(corners[2]).extend(corners[3]);
-// 	for (let i = 0; i < corners.length; i++) {
-// 		if (portalDroneIndicator.getBounds().intersects(cellBounds)) {
-// 			return true;
-// 		}
-// 	}
-// 	return false;
-// }
 
 function getLatLngPoint(data) {
 	const result = {
