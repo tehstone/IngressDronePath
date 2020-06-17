@@ -508,7 +508,7 @@ function wrapper(plugin_info) {
 				const level = Math.floor(portal["options"]["level"]||0);
 				const lvlWeight = LEVEL_TO_WEIGHT[level] * Math.sqrt(scale) + 1;
 				const lvlRadius = LEVEL_TO_RADIUS[level] * scale + 2;
-				dGridLayerGroup.addLayer(L.circleMarker(portalLatLng, { radius: lvlRadius, fill: true, color: settings.portalHighlight, weight: lvlWeight, interactive: false }
+				dGridLayerGroup.addLayer(L.circleMarker(portalLatLng, { radius: lvlRadius, fill: true, color: settings.portalHighlight, weight: lvlWeight, interactive: false, clickable: false }
 				));
 
 			}
