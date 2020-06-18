@@ -2,7 +2,7 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.8.5
+// @version 0.9.0
 // @namespace	https://github.com/tehstone/IngressDronePath
 // @downloadURL	https://github.com/tehstone/IngressDronePath/raw/master/dronePathTravelPlanner.user.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
@@ -303,6 +303,22 @@ function wrapper(plugin_info) {
 		}
 		return midpoints;
 	}
+	
+	function getCellFaceQuarterpointLatLngs(corners) {
+		let quarterpoints = [];
+		corners[4] = corners[0];
+		for (let i=0; i < 4; i++) {
+			const mlat = (corners[i].lat + corners[i+1].lat) / 2
+			const mlng = (corners[i].lng + corners[i+1].lng) / 2
+			const qlat1 = (corners[i].lat + mlat) / 2
+			const qlng1 = (corners[i].lng + mlng) / 2
+			const qlat2 = (mlat + corners[i+1].lat) / 2
+			const qlng2 = (mlng + corners[i+1].lng) / 2
+			quarterpoints.push({"lat": qlat1, "lng": qlng1});
+			quarterpoints.push({"lat": qlat2, "lng": qlng2});
+		}
+		return quarterpoints;
+	}
 
 	// The entry point for this plugin.
 	function setup() {
@@ -334,6 +350,7 @@ function wrapper(plugin_info) {
 					 <p><label for="textGridWidth">Grid Line Thickness</label><br><input type="text" id="textGridWidth" /></p>
 					 <p><label for="colorHighlight">Portal Highlight Color</label><br><input type="color" id="colorHighlight" /></p>
 					 <p><label for="cbKeyRange">Display theoretical key range</label><br><input type="checkbox" id="cbKeyRange" /></p>
+					 <p><label for="cbShowOneWay">Display one-way jumps</label><br><input type="checkbox" id="cbShowOneWay" /></p>
 					 <label for="selectCalculationType">Calculation Method</label><br>
 					 <select id="selectCalculationType">
 						 <option value="500/16">500m / L16 cells</option>
@@ -403,6 +420,13 @@ function wrapper(plugin_info) {
 			settings.keyRange = keyRangeCB.checked;
 			saveSettings();
 		});
+
+		const showOneWayCB = div.querySelector("#cbShowOneWay");
+		showOneWayCB.checked = settings.showOneWay;
+		showOneWayCB.addEventListener("change", (e) => {
+			settings.showOneWay = showOneWayCB.checked;
+			saveSettings();
+		});
 	};
 
 
@@ -459,7 +483,12 @@ function wrapper(plugin_info) {
 		const zoom = map.getZoom();
 
 		if (zoom > 8) {
-			drawCellGrid(zoom, gridSize, settings.gridColor, settings.gridWidth);
+			const cellsToDraw = determineCellGridInRange(portalDroneIndicator.getLatLng(), gridSize);
+			drawnCells = cellsToDraw;
+			Object.keys(cellsToDraw).forEach(function (key){
+				dGridLayerGroup.addLayer(drawCell(cellsToDraw[key], settings.gridColor, settings.gridWidth));
+			});
+			highlightPortalsInRange();
 			if (!droneLayer.hasLayer(dGridLayerGroup)) {
 				droneLayer.addLayer(dGridLayerGroup);
 			}
@@ -467,11 +496,11 @@ function wrapper(plugin_info) {
 
 	}
 
-	function drawCellGrid(zoom, gridLevel, col, thickness = 1) {
+	function determineCellGridInRange(centerPoint, gridLevel) {
 		const seenCells = {};
 		const cellsToDraw = [];
-		const latLng = portalDroneIndicator.getLatLng(); 
-		const cell = S2.S2Cell.FromLatLng(getLatLngPoint(latLng), gridLevel);
+		const cellsInRange = {};
+		const cell = S2.S2Cell.FromLatLng(getLatLngPoint(centerPoint), gridLevel);
 		cellsToDraw.push(cell);
 		seenCells[cell.toString()] = true;
 
@@ -482,7 +511,7 @@ function wrapper(plugin_info) {
 
 			for (let n = 0; n < neighbors.length; n++) {
 				const nStr = neighbors[n].toString();
-				if (isCellinRange(neighbors[n])) {
+				if (isCellinRange(neighbors[n], centerPoint)) {
 					if (!seenCells[nStr]) {
 						seenCells[nStr] = true;
 						cellsToDraw.push(neighbors[n]);
@@ -490,11 +519,9 @@ function wrapper(plugin_info) {
 				}
 			}
 
-			drawnCells[curCell.toString()] = curCell;
-			dGridLayerGroup.addLayer(drawCell(curCell, col, thickness));
+			cellsInRange[curCell.toString()] = curCell;
 		}
-
-		highlightPortalsInRange();
+		return cellsInRange;
 	}
 
 	function drawCell(cell, color, weight, opacity = 90) {
@@ -512,21 +539,41 @@ function wrapper(plugin_info) {
 		//	 portal level		 0	1  2  3  4	5  6  7  8
 		const LEVEL_TO_WEIGHT = [2, 2, 2, 2, 2, 3, 3, 4, 4];
 		const LEVEL_TO_RADIUS = [7, 7, 7, 7, 8, 8, 9,10,11];
+		let portalsInRange = [];
 
 		Object.keys(window.portals).forEach(function (key){
 			const portal = window.portals[key];
 			const portalLatLng = L.latLng(portal._latlng.lat, portal._latlng.lng);
 			const portalCell = S2.S2Cell.FromLatLng(getLatLngPoint(portalLatLng), calculationMethods[settings.calculationMethod]["gridSize"]);
 			if (portalCell.toString() in drawnCells) {
+				portalsInRange.push(portal);
 				const level = Math.floor(portal["options"]["level"]||0);
 				const lvlWeight = LEVEL_TO_WEIGHT[level] * Math.sqrt(scale) + 1;
 				const lvlRadius = LEVEL_TO_RADIUS[level] * scale + 2;
 				dGridLayerGroup.addLayer(L.circleMarker(portalLatLng, { radius: lvlRadius, fill: true, color: settings.portalHighlight, weight: lvlWeight, interactive: false, clickable: false }
 				));
-
 			}
 		});
 		drawnCells = {};
+		if (settings.showOneWay) {
+			highlightOneWayJumps(portalsInRange);
+		}
+	}
+
+	function highlightOneWayJumps(portalsInRange) {
+		const circlePoint = portalDroneIndicator.getLatLng(); 
+		const centerPointCell = S2.S2Cell.FromLatLng(getLatLngPoint(circlePoint), calculationMethods[settings.calculationMethod]["gridSize"]);
+		const searchLatLng = L.latLng(47.481489,-122.196868);
+		
+		portalsInRange.forEach(portal => {
+			const portalPoint = new LatLng(portal._latlng.lat, portal._latlng.lng);
+			if (haversine(portalPoint.lat, portalPoint.lng, circlePoint.lat, circlePoint.lng) > calculationMethods[settings.calculationMethod]["radius"]) {
+				const cellRange = determineCellGridInRange(portalPoint, calculationMethods[settings.calculationMethod]["gridSize"]);
+				if (!(centerPointCell.toString() in cellRange)) {
+					dGridLayerGroup.addLayer(L.circleMarker(portalPoint, { radius: 15, fill: true, color: 'red', weight: 5, interactive: false, clickable: false }));
+				}
+			}
+		});
 	}
 
 	function portalMarkerScale() {
@@ -546,17 +593,23 @@ function wrapper(plugin_info) {
 		return region;
 	}
 
-	function isCellinRange(cell) {
-		const circlePoints = portalDroneIndicator.getLatLng(); 
+	function isCellinRange(cell, centerLatLng) {
+		//const circlePoints = portalDroneIndicator.getLatLng(); 
 		const corners = cell.getCornerLatLngs();
 		for (let i = 0; i < corners.length; i++) {
-			if (haversine(corners[i].lat, corners[i].lng, circlePoints.lat, circlePoints.lng) < calculationMethods[settings.calculationMethod]["radius"]) {
+			if (haversine(corners[i].lat, corners[i].lng, centerLatLng.lat, centerLatLng.lng) < calculationMethods[settings.calculationMethod]["radius"]) {
 				return true;
 			}
 		}
 		const midpoints = getCellFaceMidpointLatLngs(corners);
 		for (let i = 0; i < midpoints.length; i++) {
-			if (haversine(midpoints[i].lat, midpoints[i].lng, circlePoints.lat, circlePoints.lng) < calculationMethods[settings.calculationMethod]["radius"]) {
+			if (haversine(midpoints[i].lat, midpoints[i].lng, centerLatLng.lat, centerLatLng.lng) < calculationMethods[settings.calculationMethod]["radius"]) {
+				return true;
+			}
+		}
+		const quarterpoints = getCellFaceQuarterpointLatLngs(corners);
+		for (let i = 0; i < quarterpoints.length; i++) {
+			if (haversine(quarterpoints[i].lat, quarterpoints[i].lng, centerLatLng.lat, centerLatLng.lng) < calculationMethods[settings.calculationMethod]["radius"]) {
 				return true;
 			}
 		}
@@ -692,6 +745,7 @@ function wrapper(plugin_info) {
 		calculationMethod: "500/16",
 		portalHighlight: "#f228ef",
 		keyRange: false,
+		showOneWay: true,
 	};
 
 	let settings = defaultSettings;
@@ -720,7 +774,10 @@ function wrapper(plugin_info) {
 			settings.portalHighlight ="#f228ef"
 		}
 		if (!"keyRange" in settings) {
-			settings.keyRange =false
+			settings.keyRange = false
+		}
+		if (!"showOneWay" in settings) {
+			settings.showOneWay = true
 		}
 	}
 
