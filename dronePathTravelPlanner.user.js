@@ -2,7 +2,7 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.9.0
+// @version 0.9.1
 // @namespace	https://github.com/tehstone/IngressDronePath
 // @downloadURL	https://github.com/tehstone/IngressDronePath/raw/master/dronePathTravelPlanner.user.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
@@ -69,6 +69,55 @@ function wrapper(plugin_info) {
 	{
 		"500/16": {"radius": 500, "gridSize": 16},
 		"570/17": {"radius": 570, "gridSize": 17}
+	}
+
+	const defaultSettings = {
+		circleColor: "#800080",
+		circleWidth: 2,
+		gridColor: "#00FF00",
+		gridWidth: 2,
+		calculationMethod: "500/16",
+		portalHighlight: "#f228ef",
+		keyRange: false,
+		showOneWay: true,
+	};
+
+	let settings = defaultSettings;
+
+	function saveSettings() {
+		createThrottledTimer("saveSettings", function () {
+			localStorage[KEY_SETTINGS] = JSON.stringify(settings);
+		});
+		drawDroneRange(lastPortalGuid);
+	}
+
+	function loadSettings() {
+		const tmp = localStorage[KEY_SETTINGS];
+		try {
+			settings = JSON.parse(tmp);
+		} catch (e) {
+			// eslint-disable-line no-empty
+		}
+		if (!settings.circleWidth) {
+			settings.circleWidth = "2";
+		}
+		if (!settings.gridWidth) {
+			settings.gridWidth = "2";
+		}
+		if (!settings.portalHighlight) {
+			settings.portalHighlight ="#f228ef"
+		}
+		if (!"keyRange" in settings) {
+			settings.keyRange = false
+		}
+		if (!"showOneWay" in settings) {
+			settings.showOneWay = true
+		}
+	}
+
+	window.resetSettings = function() {
+		settings = JSON.parse(JSON.stringify(defaultSettings));
+		showSettingsDialog();
 	}
 
 	const d2r = Math.PI / 180.0;
@@ -736,55 +785,6 @@ function wrapper(plugin_info) {
 			return new LatLng(this.lat, this.lng, this.alt);
 		}
 	};
-
-	const defaultSettings = {
-		circleColor: "#800080",
-		circleWidth: 2,
-		gridColor: "#00FF00",
-		gridWidth: 2,
-		calculationMethod: "500/16",
-		portalHighlight: "#f228ef",
-		keyRange: false,
-		showOneWay: true,
-	};
-
-	let settings = defaultSettings;
-
-	function saveSettings() {
-		createThrottledTimer("saveSettings", function () {
-			localStorage[KEY_SETTINGS] = JSON.stringify(settings);
-		});
-		drawDroneRange(lastPortalGuid);
-	}
-
-	function loadSettings() {
-		const tmp = localStorage[KEY_SETTINGS];
-		try {
-			settings = JSON.parse(tmp);
-		} catch (e) {
-			// eslint-disable-line no-empty
-		}
-		if (!settings.circleWidth) {
-			settings.circleWidth = "2";
-		}
-		if (!settings.gridWidth) {
-			settings.gridWidth = "2";
-		}
-		if (!settings.portalHighlight) {
-			settings.portalHighlight ="#f228ef"
-		}
-		if (!"keyRange" in settings) {
-			settings.keyRange = false
-		}
-		if (!"showOneWay" in settings) {
-			settings.showOneWay = true
-		}
-	}
-
-	window.resetSettings = function() {
-		settings = JSON.parse(JSON.stringify(defaultSettings));
-		showSettingsDialog();
-	}
 }
 
 
