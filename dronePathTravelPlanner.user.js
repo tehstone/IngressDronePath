@@ -2,7 +2,7 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.10.1
+// @version 0.10.2
 // @namespace	https://github.com/tehstone/IngressDronePath
 // @downloadURL	https://github.com/tehstone/IngressDronePath/raw/master/dronePathTravelPlanner.user.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
@@ -480,15 +480,27 @@ function wrapper(plugin_info) {
 		thisPlugin.addAllMarkers()
 	}
 
+	thisPlugin.onPortalSelectedPending = false;
 	thisPlugin.addToPortalDetails = function () {
 		const portalDetails = document.getElementById('portaldetails');
 
-		setTimeout(function () {
-		// class=PogoButtons
-			$(portalDetails).append(`<div class="DroneButtons">Drone Route: <a class="droneRoute" accesskey="r" onclick="window.plugin.DronePathTravelPlanner.switchStarPortal('route');return false;" title="Add this portal to the current route [r]"><span></span></a></div>`);
+		if (window.selectedPortal == null) {
+			return;
+		}
 
-			thisPlugin.updateStarPortal();
-		}, 0);
+		const droneButtonDiv = document.getElementById('droneButton');
+		if (!droneButtonDiv) {
+			if (!thisPlugin.onPortalSelectedPending) {
+				thisPlugin.onPortalSelectedPending = true;
+
+				setTimeout(function () {
+					thisPlugin.onPortalSelectedPending = false;
+
+					$(portalDetails).append(`<div id="droneButton" class="DroneButtons">Drone Route: <a class="droneRoute" accesskey="r" onclick="window.plugin.DronePathTravelPlanner.switchStarPortal('route');return false;" title="Add this portal to the current route [r]"><span></span></a></div>`);
+					thisPlugin.updateStarPortal();
+				}, 0);
+			}
+		}
 	}
 
 	thisPlugin.updateStarPortal = function () {
