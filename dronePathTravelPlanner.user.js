@@ -2,7 +2,7 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.9.1
+// @version 0.10.0
 // @namespace	https://github.com/tehstone/IngressDronePath
 // @downloadURL	https://github.com/tehstone/IngressDronePath/raw/master/dronePathTravelPlanner.user.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
@@ -24,9 +24,12 @@ function wrapper(plugin_info) {
 	if (typeof window.plugin !== "function") window.plugin = function () {};
 
 	const KEY_SETTINGS = "plugin-drone-path-planner-settings";
+	const KEY_ROUTES = "plugin-drone-path-planner-routes"
 
 	// Use own namespace for plugin
 	window.plugin.DronePathTravelPlanner = function () {};
+
+	const thisPlugin = window.plugin.DronePathTravelPlanner;
 
 	// Name of the IITC build for first-party plugins
 	plugin_info.buildName = "DronePathTravelPlanner";
@@ -56,10 +59,13 @@ function wrapper(plugin_info) {
 		}, ms || 100);
 	}
 
+	let routePortals = {};
 	window.portalDroneIndicator	= null;
 	window.portalDroneIndicatorKey = null;
 	droneLayer = null;
 	dGridLayerGroup = null;
+	let routeLayerGroup;
+	let routeLayers = {};
 	let lastPortalGuid = null;
 
 	let drawnCells = {};
@@ -91,7 +97,7 @@ function wrapper(plugin_info) {
 		drawDroneRange(lastPortalGuid);
 	}
 
-	function loadSettings() {
+	thisPlugin.loadSettings = function() {
 		const tmp = localStorage[KEY_SETTINGS];
 		try {
 			settings = JSON.parse(tmp);
@@ -118,6 +124,19 @@ function wrapper(plugin_info) {
 	window.resetSettings = function() {
 		settings = JSON.parse(JSON.stringify(defaultSettings));
 		showSettingsDialog();
+	}
+
+	thisPlugin.saveRoutes = function() {
+		createThrottledTimer('saveRoutes', function () {
+			localStorage[KEY_ROUTES] = JSON.stringify({
+				currentRoute: routePortals,
+			});
+		});
+	}
+
+	thisPlugin.loadRoutes = function() {
+		const tmp = JSON.parse(localStorage[KEY_ROUTES] || '{}');
+		routePortals = tmp.currentRoute || {};
 	}
 
 	const d2r = Math.PI / 180.0;
@@ -371,7 +390,8 @@ function wrapper(plugin_info) {
 
 	// The entry point for this plugin.
 	function setup() {
-		loadSettings();
+		thisPlugin.loadSettings();
+		thisPlugin.loadRoutes();
 
 		window.addHook(
 			"portalSelected",
@@ -382,6 +402,9 @@ function wrapper(plugin_info) {
 		window.addLayerGroup('Drone Grid', droneLayer, true);
 		dGridLayerGroup = L.layerGroup();
 
+		routeLayerGroup = L.layerGroup();
+		window.addLayerGroup('Drone Route', routeLayerGroup, true);
+
 		const toolbox = document.getElementById("toolbox");
 
 		const buttonDrone = document.createElement("a");
@@ -389,7 +412,153 @@ function wrapper(plugin_info) {
 		buttonDrone.title = "Configuration for Drone Path Plugin";
 		buttonDrone.addEventListener("click", showSettingsDialog);
 		toolbox.appendChild(buttonDrone);
+		thisPlugin.setupCSS();
+
+		thisPlugin.addAllMarkers()
 	}
+
+	thisPlugin.addToPortalDetails = function () {
+		const portalDetails = document.getElementById('portaldetails');
+
+		setTimeout(function () {
+		// class=PogoButtons
+			$(portalDetails).append(`<div class="DroneButtons">Drone Route: <a class="droneRoute" accesskey="r" onclick="window.plugin.DronePathTravelPlanner.switchStarPortal('route');return false;" title="Add this portal to the current route [r]"><span></span></a></div>`);
+
+			thisPlugin.updateStarPortal();
+		}, 0);
+	}
+
+	thisPlugin.updateStarPortal = function () {
+		$('.droneRoute').removeClass('favorite');
+		const guid = window.selectedPortal;
+		if (routePortals[guid]) {
+			$('.droneRoute').addClass('favorite');
+		}
+	}
+
+	thisPlugin.switchStarPortal = function (type) {
+		const guid = window.selectedPortal;
+	
+		if (routePortals[guid]) {
+			delete routePortals[guid];
+			let starInLayer = routeLayers[guid];
+			routeLayerGroup.removeLayer(starInLayer);
+			delete routeLayers[guid];
+			starInLayer = routeLayers[guid+"l"];
+			routeLayerGroup.removeLayer(starInLayer);
+			delete routeLayers[guid+"l"];
+		} else {
+			const p = window.portals[guid];
+			const ll = p.getLatLng();
+			thisPlugin.addPortalToRoute(guid, ll.lat, ll.lng, p.options.data.title, type);
+		}
+		thisPlugin.updateStarPortal();
+		thisPlugin.saveRoutes();
+	}
+
+	thisPlugin.addPortalToRoute = function (guid, lat, lng, name, type) {
+		// Add pogo in the localStorage
+		const obj = {'guid': guid, 'lat': lat, 'lng': lng, 'name': name};
+
+		// prevent that it would trigger the missing portal detection if it's in our data
+		if (window.portals[guid]) {
+			obj.exists = true;
+		}
+
+		if (type == 'route') {
+			routePortals[guid] = obj;
+		}
+
+		//saveStorage();
+		thisPlugin.updateStarPortal();
+
+		thisPlugin.addStar(guid, lat, lng, name, type);
+	};
+
+	thisPlugin.addStar = function (guid, lat, lng, name, type) {
+		let star;
+		let starl;
+		if (type === 'route') {
+			const route = routePortals[guid];
+
+			star = new L.Marker.SVGMarker([lat, lng], {
+				title: name,
+				iconOptions: {
+					className: 'route',
+					html: `<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 151.56 128">
+<defs><style>.cls-1{fill:#fff;}.cls-2{fill:#fff;}</style></defs>
+<path class="cls-1" d="M100.52,82.83a40.09,40.09,0,0,0-10.58,37.76h-4.1a44.22,44.22,0,0,1,27.75-50.78l2,3.53A40,40,0,0,0,100.52,82.83Z"/>
+<path class="cls-1" d="M111.48,93.79a24.56,24.56,0,0,0-5.27,26.8h-5.33A29.47,29.47,0,0,1,121,82.67l2.59,4.5A24.41,24.41,0,0,0,111.48,93.79Z"/>
+<path class="cls-1" d="M69.4,111.11a43.13,43.13,0,0,1-1,9.48H64.3A40,40,0,0,0,38.2,73.21l2-3.53A44,44,0,0,1,69.4,111.11Z"/>
+<path class="cls-1" d="M54.9,111.11a28.87,28.87,0,0,1-1.57,9.48H48a24.51,24.51,0,0,0-17.8-33.51l2.62-4.52A29.49,29.49,0,0,1,54.9,111.11Z"/>
+<path class="cls-1" d="M105.22,55.31a44,44,0,0,1-56.44-.42l2-3.54a40,40,0,0,0,52.37.43Z"/>
+<path class="cls-1" d="M97.82,42.48A29.5,29.5,0,0,1,56.21,42l2.62-4.54c.35.41.72.8,1.1,1.18a24.5,24.5,0,0,0,34.64,0v0c.22-.22.43-.44.64-.67Z"/>
+<circle class="cls-1" cx="128.78" cy="111.11" r="17"/>
+<circle class="cls-1" cx="25.37" cy="111.11" r="17"/>
+<circle class="cls-1" cx="77.22" cy="21.33" r="17"/>
+<path class="cls-2" d="M89.81,111.14a39.07,39.07,0,0,1,11.42-27.6l-.71-.71.71.71a39,39,0,0,1,14.69-9.26l1.13-.39-3-5.31-.79.29a45,45,0,0,0-29.41,42.21v.23a43.93,43.93,0,0,0,1,9.49l.17.79h6.17l-.3-1.24A39,39,0,0,1,89.81,111.14Zm-4,0h0v0a43,43,0,0,1,27.31-40l1,1.76a41.22,41.22,0,0,0-14.34,9.3h0a40.89,40.89,0,0,0-11.1,37.47h-2a42.67,42.67,0,0,1-.83-8.28Z"/>
+<path class="cls-2" d="M123.82,88.15l1.34-.29L121.5,81.5l-.74.21A30.46,30.46,0,0,0,98.31,111.1h0v0a30,30,0,0,0,1.63,9.76l.23.68h7.54l-.57-1.39a23.49,23.49,0,0,1,5-25.7l-.71-.71.71.71A23.35,23.35,0,0,1,123.82,88.15Zm-13,4.93h0a25.52,25.52,0,0,0-6,26.51h-3.13a28.08,28.08,0,0,1-1.32-8.44v0h0a28.44,28.44,0,0,1,20.25-27.23l1.53,2.66A25.44,25.44,0,0,0,110.77,93.08Z"/>
+<path class="cls-2" d="M70.4,111.11A45,45,0,0,0,40.54,68.74l-.79-.28-3,5.31,1.14.39A39,39,0,0,1,64.45,111.1a38.68,38.68,0,0,1-1.12,9.25l-.3,1.24h6.18l.17-.79a44.57,44.57,0,0,0,1-9.5v-.19Zm-2.82,8.48h-2A40.84,40.84,0,0,0,39.66,72.67l1-1.75A43,43,0,0,1,68.4,111.11h0v.19A42.68,42.68,0,0,1,67.58,119.59Z"/>
+<path class="cls-2" d="M33.06,81.59l-.73-.19-3.7,6.39,1.37.27a24.38,24.38,0,0,1,4.48,1.37A23.5,23.5,0,0,1,47.07,120.2l-.58,1.39h7.56l.23-.68a30.27,30.27,0,0,0,1.62-9.76v0h0A30.49,30.49,0,0,0,33.06,81.59Zm19.53,38H49.45a25.5,25.5,0,0,0-14.2-32,25.85,25.85,0,0,0-3.51-1.18l1.54-2.66A28.47,28.47,0,0,1,53.9,111.11h0v0A28.07,28.07,0,0,1,52.59,119.59Z"/>
+<path class="cls-2" d="M106.52,55.54l-.43-.74-2.68-4.55-.91.77a39,39,0,0,1-51.06-.42l-.92-.82-3,5.34.63.53a45,45,0,0,0,57.72.43Zm-56.45-.89,1-1.76a41,41,0,0,0,51.82.4l1,1.77a43,43,0,0,1-53.85-.41Z"/>
+<path class="cls-2" d="M77.26,51.83A30.4,30.4,0,0,0,98.52,43.2l.56-.55L98.69,42l-3.28-5.69-.93,1q-.28.31-.6.63h0a23.49,23.49,0,0,1-33.22,0c-.37-.37-.72-.74-1-1.12l-.92-1.08L55,42.16l.53.54A30.4,30.4,0,0,0,77.26,51.83Zm0-5A25.42,25.42,0,0,0,95,39.61l1.55,2.68a28.46,28.46,0,0,1-39.09-.47L59,39.13l.21.22A25.39,25.39,0,0,0,77.26,46.82Z"/>
+<path class="cls-2" d="M128.78,99.11a12,12,0,1,0,12,12A12,12,0,0,0,128.78,99.11Zm7.07,19.07a10,10,0,1,1,2.93-7.07A10,10,0,0,1,135.85,118.18Z"/>
+<path class="cls-2" d="M25.37,99.11a12,12,0,1,0,12,12A12,12,0,0,0,25.37,99.11Zm7.07,19.07a10,10,0,1,1,2.93-7.07A10,10,0,0,1,32.44,118.18Z"/>
+<path class="cls-2" d="M77.22,33.33a12,12,0,1,0-12-12A12,12,0,0,0,77.22,33.33ZM70.15,14.26a10,10,0,1,1-2.93,7.07A10,10,0,0,1,70.15,14.26Z"/></svg>`,
+					iconSize: L.point(32, 40),
+					iconAnchor: [15, 44],
+					id: 'routel' + guid.replace('.', '')
+				}
+			});
+
+			starl = new L.Marker.SVGMarker([lat, lng], {
+				title: name + "l",
+				iconOptions: {
+					className: 'route',
+					html: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700.000000 627.000000" preserveAspectRatio="xMidYMid meet">
+<g transform="translate(0.000000,627.000000) scale(0.100000,-0.100000)" fill="#000000" fill-opacity="0.7" stroke="none">
+<path d="M3405 5459 c-27 -5 -61 -15 -75 -21 -64 -31 -190 -131 -190 -152 0 -6 -10 -20 -22 -31 -23 -20 -36 -41 -80 -126 -13 -24 -28 -49 -34 -56 -6 -6 -23 -35 -38 -65 -28 -55 -48 -90 -56 -98 -6 -6 -31 -50  62 -111 -13 -24 -29 -50 -36 -58 -8 -8 -25 -38 -38 -67 -13 -29 -28 -55 -33 -58 -5 -4 -19 -27 -32 -54 -12 -26 -30 -56 -39 -67 -10 -11 -21 -31 -25 -45 -4 -14 -10 -27 -14 -30 -16 -13 -51 -71 -57 -94 -3 -14  12 -30 -20 -37 -7 -6 -25 -35 -38 -63 -14 -29 -32 -59 -41 -66 -8 -7 -15 -18 -15 -24 0 -6 -15 -34 -32 -61 -18 -28 -41 -66 -50 -85 -19 -37 -39 -71 -48 -80 -3 -3 -13 -21 -23 -40 -40 -77 -76 -142 -87 -155 -7  8 -26 -41 -42 -72 -16 -32 -33 -60 -36 -63 -7 -5 -38 -59 -68 -120 -10 -19 -20 -37 -23 -40 -9 -8 -28 -40 -57 -98 -15 -30 -32 -59 -38 -65 -6 -7 -21 -32 -34 -56 -31 -61 -56 -105 -62 -111 -8 -8 -29 -43 -46 -80  10 -19 -27 -48 -38 -65 -12 -16 -32 -52 -46 -80 -13 -27 -29 -57 -36 -65 -7 -8 -24 -37 -40 -65 -51 -93 -63 -114 -87 -152 -13 -21 -30 -53 -38 -71 -8 -17 -17 -32 -20 -32 -3 0 -20 -28 -38 -62 -18 -35 -50  92 -72 -128 -22 -36 -47 -81 -56 -100 -10 -19 -23 -41 -31 -49 -8 -8 -24 -37 -37 -66 -13 -29 -31 -58 -40 -65 -8 -7 -15 -18 -15 -24 0 -6 -15 -35 -34 -63 -19 -29 -38 -63 -42 -75 -4 -13 -20 -39 -35 -58 -16 -19  29 -38 -29 -43 0 -9 -24 -68 -41 -99 -5 -10 -9 -26 -9 -36 0 -10 -5 -23 -12 -30 -14 -14 -16 -203 -1 -234 6 -13 18 -39 26 -58 9 -19 29 -48 46 -64 17 -17 31 -35 31 -40 0 -6 9 -16 19 -21 11 -6 36 -19 58  29 21 -11 40 -22 43 -25 3 -4 21 -13 40 -21 30 -13 181 -15 1100 -18 658 -1 1068 -6 1074 -12 6 -6 14 -6 21 0 7 6 423 11 1086 12 794 2 1079 6 1094 15 11 6 45 23 75 37 56 26 155 118 178 166 7 14 17 50 23 80 5  0 13 68 16 83 3 16 1 38 -5 50 -6 12 -13 44 -16 72 -4 27 -11 54 -16 59 -6 6 -10 17 -10 26 0 18 -52 124 -73 149 -8 9 -21 32 -31 51 -18 39 -38 72 -47 80 -3 3 -13 21 -23 40 -23 46 -78 144 -91 161 -6 8 -17  8 -25 44 -8 17 -24 44 -36 60 -11 17 -28 46 -38 65 -17 37 -38 72 -46 80 -6 6 -41 69 -66 120 -10 19 -20 37 -23 40 -9 8 -28 41 -48 80 -15 31 -52 94 -90 156 -7 10 -20 35 -30 54 -9 19 -19 37 -22 40 -9 8 -28 41  58 100 -15 30 -30 57 -34 60 -6 5 -35 55 -75 130 -11 19 -21 37 -24 40 -10 10 -31 46 -57 100 -15 30 -33 61 -41 69 -8 8 -24 37 -37 66 -13 29 -31 58 -40 65 -8 7 -15 18 -15 24 0 6 -16 34 -35 63 -19 28 -37  3 -41 77 -3 14 -10 26 -14 26 -5 0 -23 29 -41 65 -17 36 -38 70 -45 76 -8 6 -14 16 -14 21 0 5 -16 34 -35 64 -19 30 -35 57 -35 59 0 3 -12 24 -27 48 -15 23 -37 62 -50 87 -24 47 -44 81 -53 90 -3 3 -13 21 -22  0 -10 19 -24 44 -30 55 -35 55 -76 124 -91 155 -19 38 -39 72 -47 80 -6 6 -41 69 -66 120 -10 19 -20 37 -23 40 -9 8 -29 41 -47 80 -10 19 -23 42 -30 50 -13 15 -57 94 -90 160 -10 19 -20 37 -23 40 -9 7 -28 41  48 80 -9 19 -27 49 -40 66 -13 17 -23 35 -23 39 0 5 -12 21 -26 36 -15 15 -32 38 -38 50 -12 26 -114 108 -133 109 -7 0 -13 3 -13 8 0 4 -12 12 -27 19 -62 25 -150 34 -218 22z"></path></g></svg>`,
+		
+					iconSize: L.point(50, 58),
+					iconAnchor: [25, 52],
+					id: 'routel' + guid.replace('.', '')
+				}
+			});
+
+		}
+
+		if (!star)
+			return;
+
+		window.registerMarkerForOMS(star);
+		star.on('spiderfiedclick', function () {
+			// don't try to render fake portals
+			if (guid.indexOf('.') > -1) {
+				renderPortalDetails(guid);
+			}
+		});
+
+		if (type === 'route') {
+			routeLayers[guid+"l"] = starl;
+			starl.addTo(routeLayerGroup);
+			routeLayers[guid] = star;
+			star.addTo(routeLayerGroup);
+			
+		}
+	};
+
+	thisPlugin.addAllMarkers = function() {
+		for (let pid in routePortals) {
+			const item = routePortals[pid];
+			const lat = item.lat;
+			const lng = item.lng;
+			const guid = item.guid;
+			const name = item.name;
+			if (guid != null) {
+				thisPlugin.addStar(guid, lat, lng, name, "route");
+			}
+		}
+	};
 
 	function showSettingsDialog() {
 		const html =
@@ -480,6 +649,8 @@ function wrapper(plugin_info) {
 
 
 	window.drawDroneRange = function (guid) {
+		thisPlugin.addToPortalDetails();
+		
 		portalDroneIndicator = null;
 		portalDroneIndicatorKey = null;
 		dGridLayerGroup.clearLayers();
@@ -785,6 +956,39 @@ function wrapper(plugin_info) {
 			return new LatLng(this.lat, this.lng, this.alt);
 		}
 	};
+
+	thisPlugin.setupCSS = function () {
+		$('<style>').prop('type', 'text/css').html(`
+		.droneRoute span {
+			display:inline-block;
+			float:left;
+			margin:3px 1px 0 4px;
+			width:16px;
+			height:15px;
+			overflow:hidden;
+			background-repeat:no-repeat;
+		}
+		.droneRoute span, .droneRoute:focus span {
+			background-position:right top;
+		}
+		.droneRoute.favorite span, .droneRoute.favorite:focus span{
+			background-position:left top;
+		}
+
+		.droneRoute span {
+			background-image:url(data:image/png;base64,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);
+		}
+
+		.DroneButtons {
+			color: #fff;
+			padding: 3px;
+		}
+
+		.DroneButtons span {
+			float: none;
+		}		
+		`).appendTo('head');
+	}
 }
 
 
@@ -808,3 +1012,31 @@ function wrapper(plugin_info) {
 		wrapper(plugin_info);
 	}
 })();
+
+
+			// html: `<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 151.56 128">
+			// 				<defs><style>.cls-1{fill:#eee;}.cls-2{fill:#ef25fa;}</style></defs>
+			// 				<path class="cls-1" d="M100.52,82.83a40.09,40.09,0,0,0-10.58,37.76h-4.1a44.22,44.22,0,0,1,27.75-50.78l2,3.53A40,40,0,0,0,100.52,82.83Z"/>
+			// 				<path class="cls-1" d="M111.48,93.79a24.56,24.56,0,0,0-5.27,26.8h-5.33A29.47,29.47,0,0,1,121,82.67l2.59,4.5A24.41,24.41,0,0,0,111.48,93.79Z"/>
+			// 				<path class="cls-1" d="M69.4,111.11a43.13,43.13,0,0,1-1,9.48H64.3A40,40,0,0,0,38.2,73.21l2-3.53A44,44,0,0,1,69.4,111.11Z"/>
+			// 				<path class="cls-1" d="M54.9,111.11a28.87,28.87,0,0,1-1.57,9.48H48a24.51,24.51,0,0,0-17.8-33.51l2.62-4.52A29.49,29.49,0,0,1,54.9,111.11Z"/>
+			// 				<path class="cls-1" d="M105.22,55.31a44,44,0,0,1-56.44-.42l2-3.54a40,40,0,0,0,52.37.43Z"/>
+			// 				<path class="cls-1" d="M97.82,42.48A29.5,29.5,0,0,1,56.21,42l2.62-4.54c.35.41.72.8,1.1,1.18a24.5,24.5,0,0,0,34.64,0v0c.22-.22.43-.44.64-.67Z"/>
+			// 				<circle class="cls-1" cx="128.78" cy="111.11" r="17"/>
+			// 				<circle class="cls-1" cx="25.37" cy="111.11" r="17"/>
+			// 				<circle class="cls-1" cx="77.22" cy="21.33" r="17"/>
+			// 				<path class="cls-2" d="M89.81,111.14a39.07,39.07,0,0,1,11.42-27.6l-.71-.71.71.71a39,39,0,0,1,14.69-9.26l1.13-.39-3-5.31-.79.29a45,45,0,0,0-29.41,42.21v.23a43.93,43.93,0,0,0,1,9.49l.17.79h6.17l-.3-1.24A39,39,0,0,1,89.81,111.14Zm-4,0h0v0a43,43,0,0,1,27.31-40l1,1.76a41.22,41.22,0,0,0-14.34,9.3h0a40.89,40.89,0,0,0-11.1,37.47h-2a42.67,42.67,0,0,1-.83-8.28Z"/>
+			// 				<path class="cls-2" d="M123.82,88.15l1.34-.29L121.5,81.5l-.74.21A30.46,30.46,0,0,0,98.31,111.1h0v0a30,30,0,0,0,1.63,9.76l.23.68h7.54l-.57-1.39a23.49,23.49,0,0,1,5-25.7l-.71-.71.71.71A23.35,23.35,0,0,1,123.82,88.15Zm-13,4.93h0a25.52,25.52,0,0,0-6,26.51h-3.13a28.08,28.08,0,0,1-1.32-8.44v0h0a28.44,28.44,0,0,1,20.25-27.23l1.53,2.66A25.44,25.44,0,0,0,110.77,93.08Z"/>
+			// 				<path class="cls-2" d="M70.4,111.11A45,45,0,0,0,40.54,68.74l-.79-.28-3,5.31,1.14.39A39,39,0,0,1,64.45,111.1a38.68,38.68,0,0,1-1.12,9.25l-.3,1.24h6.18l.17-.79a44.57,44.57,0,0,0,1-9.5v-.19Zm-2.82,8.48h-2A40.84,40.84,0,0,0,39.66,72.67l1-1.75A43,43,0,0,1,68.4,111.11h0v.19A42.68,42.68,0,0,1,67.58,119.59Z"/>
+			// 				<path class="cls-2" d="M33.06,81.59l-.73-.19-3.7,6.39,1.37.27a24.38,24.38,0,0,1,4.48,1.37A23.5,23.5,0,0,1,47.07,120.2l-.58,1.39h7.56l.23-.68a30.27,30.27,0,0,0,1.62-9.76v0h0A30.49,30.49,0,0,0,33.06,81.59Zm19.53,38H49.45a25.5,25.5,0,0,0-14.2-32,25.85,25.85,0,0,0-3.51-1.18l1.54-2.66A28.47,28.47,0,0,1,53.9,111.11h0v0A28.07,28.07,0,0,1,52.59,119.59Z"/>
+			// 				<path class="cls-2" d="M106.52,55.54l-.43-.74-2.68-4.55-.91.77a39,39,0,0,1-51.06-.42l-.92-.82-3,5.34.63.53a45,45,0,0,0,57.72.43Zm-56.45-.89,1-1.76a41,41,0,0,0,51.82.4l1,1.77a43,43,0,0,1-53.85-.41Z"/>
+			// 				<path class="cls-2" d="M77.26,51.83A30.4,30.4,0,0,0,98.52,43.2l.56-.55L98.69,42l-3.28-5.69-.93,1q-.28.31-.6.63h0a23.49,23.49,0,0,1-33.22,0c-.37-.37-.72-.74-1-1.12l-.92-1.08L55,42.16l.53.54A30.4,30.4,0,0,0,77.26,51.83Zm0-5A25.42,25.42,0,0,0,95,39.61l1.55,2.68a28.46,28.46,0,0,1-39.09-.47L59,39.13l.21.22A25.39,25.39,0,0,0,77.26,46.82Z"/>
+			// 				<path class="cls-2" d="M128.78,99.11a12,12,0,1,0,12,12A12,12,0,0,0,128.78,99.11Zm7.07,19.07a10,10,0,1,1,2.93-7.07A10,10,0,0,1,135.85,118.18Z"/>
+			// 				<path class="cls-2" d="M25.37,99.11a12,12,0,1,0,12,12A12,12,0,0,0,25.37,99.11Zm7.07,19.07a10,10,0,1,1,2.93-7.07A10,10,0,0,1,32.44,118.18Z"/>
+			// 				<path class="cls-2" d="M77.22,33.33a12,12,0,1,0-12-12A12,12,0,0,0,77.22,33.33ZM70.15,14.26a10,10,0,1,1-2.93,7.07A10,10,0,0,1,70.15,14.26Z"/></svg>`,
+
+
+// 								html: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700.000000 626.000000" preserveAspectRatio="xMidYMid meet">
+// <g transform="translate(0.000000,626.000000) scale(0.100000,-0.100000)" fill="#c43bff" stroke="none">
+// <path d="M3276 6241 c-10 -11 -41 -25 -69 -31 -29 -6 -99 -34 -157 -63 -95 -47 -116 -63 -221 -167 -72 -72 -128 -138 -149 -175 -51 -89 -100 -197 -100 -220 0 -11 -11 -40 -24 -65 -13 -25 -27 -56 -31 -70 -4 -14 -14 -33 -22 -42 -15 -17 -36 -52 -70 -118 -10 -19 -27 -48 -37 -63 -11 -16 -26 -41 -35 -57 -29 -51 -71 -124 -96 -165 -13 -22 -32 -56 -42 -75 -10 -19 -27 -48 -37 -63 -24 -36 -50 -82 -71 -127 -10 -19 -23 -42 -31 -51 -13 -15 -49 -74 -80 -134 -8 -16 -30 -55 -49 -85 -19 -30 -43 -74 -54 -96 -11 -23 -24 -45 -30 -49 -6 -3 -18 -21 -26 -38 -8 -18 -28 -54 -45 -82 -16 -27 -42 -72 -57 -99 -16 -26 -39 -67 -53 -91 -14 -24 -38 -65 -53 -91 -16 -27 -39 -67 -52 -89 -26 -43 -60 -101 -105 -180 -16 -27 -42 -72 -57 -98 -15 -27 -37 -66 -48 -86 -11 -21 -26 -46 -34 -55 -14 -17 -33 -50 -71 -121 -12 -22 -37 -65 -55 -95 -19 -30 -44 -73 -55 -95 -11 -22 -36 -65 -55 -95 -19 -30 -41 -69 -50 -87 -8 -17 -19 -34 -25 -38 -5 -3 -19 -25 -30 -48 -25 -50 -40 -76 -106 -187 -28 -47 -54 -92 -58 -100 -3 -8 -22 -40 -41 -70 -19 -30 -44 -73 -55 -95 -11 -22 -34 -60 -50 -85 -16 -25 -39 -63 -50 -85 -11 -22 -36 -65 -55 -95 -19 -30 -43 -71 -53 -90 -11 -19 -35 -61 -53 -93 -19 -32 -41 -71 -49 -85 -8 -15 -31 -53 -50 -85 -19 -32 -46 -77 -60 -101 -70 -123 -123 -213 -160 -276 -56 -93 -80 -137 -100 -177 -11 -23 -29 -45 -40 -48 -19 -6 -20 -16 -20 -360 0 -332 1 -354 18 -359 10 -4 28 -27 40 -54 58 -126 208 -276 334 -334 27 -12 50 -30 54 -40 5 -17 124 -18 3040 -18 2623 0 3034 2 3034 14 0 23 29 46 59 46 22 0 60 33 194 166 137 137 167 171 167 194 0 31 23 60 46 60 12 0 14 49 14 319 0 312 0 320 -20 326 -11 4 -29 23 -41 43 -11 20 -33 57 -49 82 -16 25 -39 64 -51 88 -12 23 -25 45 -30 48 -5 3 -16 20 -24 37 -9 18 -31 57 -50 87 -19 30 -41 69 -50 87 -8 17 -19 34 -24 37 -5 3 -18 25 -30 48 -12 24 -37 68 -56 98 -19 30 -41 69 -50 85 -8 17 -30 55 -49 85 -19 30 -56 91 -81 135 -25 44 -62 105 -80 135 -19 30 -44 74 -55 97 -11 23 -25 45 -30 48 -6 4 -17 21 -25 38 -9 18 -31 57 -50 87 -19 30 -44 73 -55 95 -11 22 -34 60 -50 85 -16 25 -35 56 -42 70 -7 14 -21 38 -33 54 -11 17 -29 47 -40 67 -26 50 -59 104 -95 159 -16 25 -38 64 -49 86 -11 23 -24 45 -30 48 -6 4 -20 26 -31 49 -27 54 -52 98 -76 134 -25 38 -49 80 -74 130 -11 23 -25 45 -31 49 -6 3 -18 21 -26 38 -8 17 -30 56 -48 86 -19 30 -44 74 -55 97 -11 23 -25 45 -31 49 -6 3 -18 21 -26 38 -8 17 -28 54 -46 83 -58 94 -101 168 -114 193 -7 14 -27 45 -43 70 -17 25 -39 64 -50 87 -11 23 -24 45 -29 47 -5 3 -18 25 -30 48 -12 24 -37 68 -56 98 -19 30 -42 69 -50 85 -9 17 -31 55 -50 85 -19 30 -46 75 -60 100 -14 25 -37 63 -50 85 -29 49 -75 127 -96 165 -9 16 -24 41 -35 57 -10 15 -25 40 -34 55 -45 78 -76 132 -125 213 -87 144 -112 198 -123 262 -14 82 -91 236 -162 326 -129 164 -291 276 -469 327 -35 10 -68 25 -73 34 -8 14 -35 16 -192 16 -168 0 -184 -2 -200 -19z m374 -267 c19 -12 46 -25 60 -29 81 -25 197 -147 255 -270 26 -55 29 -72 33 -196 4 -130 3 -139 -22 -191 -14 -30 -26 -59 -26 -65 0 -12 -59 -91 -103 -136 -47 -49 -93 -79 -175 -117 -70 -32 -78 -33 -195 -34 -119 0 -124 1 -207 37 -140 62 -225 149 -291 299 -30 69 -32 80 -32 193 0 109 2 126 27 185 36 84 83 155 138 206 46 43 118 94 134 94 5 0 23 7 39 16 55 30 79 33 205 31 108 -2 130 -5 160 -23z m-1020 -1423 c123 -127 358 -266 505 -300 22 -5 69 -17 105 -27 51 -14 101 -18 235 -18 158 1 178 3 285 32 235 63 432 176 580 334 25 26 50 48 56 48 10 0 84 -100 84 -113 0 -4 11 -24 24 -45 31 -49 49 -107 42 -137 -6 -24 -132 -137 -221 -198 -163 -111 -322 -178 -555 -232 -100 -24 -392 -30 -515 -11 -116 17 -256 55 -352 93 -76 30 -234 115 -274 147 -15 12 -53 40 -85 63 -89 63 -147 127 -147 160 0 56 124 273 156 273 6 0 40 -31 77 -69z m-303 -817 c133 -99 474 -274 533 -274 6 0 23 -6 38 -14 15 -8 61 -21 102 -30 41 -9 107 -22 145 -30 39 -9 133 -20 209 -26 411 -33 873 81 1201 297 87 57 186 127 220 156 57 48 84 36 135 -59 31 -57 32 -64 20 -93 -21 -51 -240 -205 -431 -301 -147 -75 -260 -117 -424 -160 -233 -60 -339 -74 -575 -75 -222 0 -370 18 -570 71 -271 72 -535 201 -768 376 -102 77 -132 110 -132 142 0 30 43 116 75 149 l26 27 64 -52 c35 -29 94 -76 132 -104z m-679 -859 c24 -13 62 -30 85 -36 106 -27 337 -166 521 -312 148 -117 388 -381 461 -507 17 -28 39 -63 49 -77 11 -14 27 -40 36 -57 9 -17 21 -40 27 -51 66 -120 133 -290 174 -440 11 -38 26 -90 34 -115 7 -25 16 -65 19 -90 3 -25 13 -94 23 -155 22 -151 22 -458 -1 -534 -9 -30 -16 -77 -16 -105 0 -120 -33 -156 -142 -156 -77 0 -105 20 -94 66 7 28 19 145 36 361 9 114 8 160 -9 323 -11 105 -27 212 -35 238 -8 26 -27 83 -41 127 -14 44 -32 104 -40 133 -16 56 -105 244 -154 322 -72 117 -240 332 -300 384 -13 12 -45 41 -71 66 -89 86 -344 270 -375 270 -7 0 -23 8 -36 19 -13 10 -51 30 -84 43 -180 76 -229 99 -237 110 -16 26 -7 74 22 118 58 91 75 97 148 55z m3790 -49 c22 -31 37 -66 40 -91 5 -52 -13 -69 -130 -115 -183 -72 -387 -203 -556 -357 -204 -184 -403 -463 -493 -688 -119 -301 -165 -529 -162 -810 1 -119 23 -374 39 -453 11 -52 -15 -72 -93 -72 -73 0 -120 19 -128 53 -13 55 -38 254 -47 379 -9 114 -7 160 7 275 9 76 20 167 25 203 4 36 14 90 23 120 9 30 23 80 31 110 36 127 95 290 129 354 21 38 37 73 37 78 0 5 12 27 27 51 14 23 36 58 48 77 75 122 123 188 211 290 188 217 338 345 569 485 84 52 234 125 256 125 8 1 30 10 49 20 53 30 78 22 118 -34z m-4113 -632 c33 -14 77 -32 99 -40 57 -21 239 -114 251 -128 6 -6 26 -23 45 -36 113 -77 293 -256 368 -365 124 -180 183 -315 249 -565 22 -82 26 -123 30 -297 5 -192 4 -209 -21 -325 -35 -159 -41 -174 -78 -187 -17 -6 -86 -11 -154 -11 -98 0 -126 3 -138 16 -20 19 -20 34 -1 61 8 11 17 40 21 64 3 24 15 71 25 103 23 68 33 289 17 379 -31 179 -77 331 -130 424 -50 90 -133 203 -195 269 -90 94 -245 212 -302 229 -12 4 -39 18 -58 31 -20 13 -43 24 -53 24 -9 0 -38 11 -64 25 -27 14 -79 30 -119 35 -77 11 -101 28 -92 64 11 39 87 179 118 218 27 34 35 38 76 38 26 0 72 -11 106 -26z m4472 -11 c50 -55 135 -217 131 -250 -3 -26 -7 -29 -57 -35 -56 -6 -92 -20 -241 -92 -123 -58 -227 -133 -325 -230 -56 -56 -145 -164 -145 -177 0 -4 -11 -20 -24 -36 -13 -15 -27 -39 -31 -53 -4 -14 -13 -32 -20 -40 -23 -27 -63 -143 -96 -275 -29 -119 -32 -143 -32 -290 1 -134 4 -170 21 -220 11 -33 24 -80 28 -105 3 -25 13 -54 20 -65 18 -25 18 -40 -2 -59 -12 -13 -39 -16 -132 -16 -179 0 -201 11 -217 107 -4 21 -16 76 -27 123 -18 75 -19 109 -15 290 4 178 8 218 31 304 43 167 95 310 136 376 6 8 22 37 36 65 51 96 124 191 222 290 145 146 242 223 357 282 22 11 54 28 70 36 26 14 204 87 245 100 27 10 32 7 67 -30z m-4825 -937 c24 -13 55 -27 69 -31 79 -25 181 -137 241 -265 31 -66 36 -87 41 -181 10 -184 -15 -276 -110 -400 -54 -72 -94 -106 -135 -114 -18 -4 -59 -15 -91 -26 -75 -25 -319 -27 -382 -3 -22 9 -58 21 -80 27 -75 22 -147 91 -201 191 -60 110 -64 128 -64 267 1 89 6 146 15 169 7 19 20 54 29 78 41 109 142 209 286 279 64 32 68 33 201 33 124 0 140 -2 181 -24z m5446 -13 c73 -32 99 -50 165 -115 50 -50 85 -95 98 -125 12 -27 28 -64 37 -83 24 -50 24 -344 1 -381 -9 -13 -21 -39 -27 -57 -25 -74 -151 -206 -206 -216 -20 -4 -55 -16 -78 -26 -37 -17 -66 -20 -193 -19 -109 0 -161 4 -190 15 -22 8 -64 21 -93 28 -29 8 -65 24 -79 37 -37 35 -113 137 -124 167 -6 15 -19 47 -31 70 -18 38 -21 63 -21 190 l-1 147 39 80 c71 148 139 218 275 283 89 42 81 40 218 41 121 1 125 0 210 -36z"></path> </g> </svg>`,
+// background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAPCAMAAACyXj0lAAACZFBMVEUAAAD///8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAQECAAAAAAAGAQEAAAAPDw8AAAAMAgIAAAALAQEBAQETAwMAAAAGBQUMAgISEhIAAAAWFhYBAQEWAwMAAAACAgIDAwMFBQUGBgYJCQkPDw8REREVGBgWFhYXFxchISEiIiIkICAoKCgpICAtLCwtLi4uBQUuKysuLy8vEBAvMjEyMDAzMzM0NDQ4ODg5OTk6Ojo+Pj5AQUFBS0tCSEhDQ0NISEhJSUlMTExSUlJUVFRWVlZXV1dYCwtZCwtaWlpcXFxeXl5gYGBhBgZiYmJjY2NlDAxmDAxnZ2doaGhra2tsbGxtbW1wcHBwfHtxcXFycnJ0dHR1dXV2dnZ4CQl5eXl9fX2CgoKEhISFhYWGhoaIiIiIiomJh4qKioqLi4uMjIyNjY2PiZCQkJCUlJSXBASaERGanJycBAScnJytFRWuDg6urq6wFBS2wcG3t7e4FRW5t7q6Cwu6urq7Dg6+vr7CwsLDwMTEDg7FxcXHxsfIyMjJFxfKDw/MDg7MzMzPz8/P0NDQ0NDRDw/RFxfS09XX19faGBja2trbExPc3NzlGhrl5eXo6Ojs7u7u7u7vGxvwGhrw8PDyGhry8vLz8/P0Ghr3Gxv39/f4+Pj8/Pz8/v79/f3+////HBz/HR3/Hh7///9j6e8DAAAAPnRSTlMAAAIKDBIWGBshJTI0O0tQY2VocnN1fImVnZ6lqKmrrLCxs7u8vb3G0tbW1tra39/i4uXl7Ozv7+/v8fH6+jTKPt8AAAGeSURBVHgBYwACZiFlAxMdWT4Qm5ERImBoqgsUgAAeDfe8hsbaZEd5VpACkED6rK27Nk4IAAoAAbdZVldXd3dXV5OXOgtIAbfFlFMnT5w4eXJ3IVCAgVkzGywNJJo9JIAKmLWnnwJJA9XszZBgYBD0AEp1F2fWd3W3VtpwMTIKZgDlT8yZtPnUiYPrbLkYVEuBuj3t7OxyurpbPEUYGdWWnTp5MjeuwnfqqRMHCkQYjIoqK9Psqu2jHapqyiKlGRmN5y1f3h+7vn1G8Iq1i+qkGczsgMDewS7JDgSUGBnN/fyD3Np67BaG+IUGeisx6M0/fbrELjXK0e7QsfkukoyM+jtOn17ts2R2d8zR4zsmSjIoRJ8+fdoVqLn59LYFdgKMjApzgQKTw+KjN50+vDNPgIHf7jQQLO0EEqvyzdgYGfkTQAJ7tgCJfSst2RiYVJxPQ8E0O2FgODCp9MEEticKA0OSQ9NhP5jbYCcFDmoOrY4jYIENSVLguGCXs3NKKY2wsxIDRxZIILx38ZqZ5dZAAQjgFVdUlhHlhMQmmgAAN4GpuWb98MUAAAAASUVORK5CYII=);
