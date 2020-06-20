@@ -15,6 +15,7 @@ This script is an add-on for [Ingress Intel Total Conversion (IITC)](https://iit
 
 ### Using the Plugin
 Once the plugin is installed, selecting a portal will draw a 500 meter ring around that portal and draw all Level 16 S2 grid cells that intersect with that circle. All portals within those cells will be highlighted. Any portal that would be a one-way jump from the selected portal will have an additional red highlight.
+
 ![Example Screenshot](https://i.imgur.com/jR2MFaa.png)
 
 Additionally, portals can be marked as part of the current route and all portals marked in this way will display on the map with the Drone icon. This mark is saved when the page is refreshed.
