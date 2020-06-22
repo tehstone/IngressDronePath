@@ -2,7 +2,7 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.13.0
+// @version 0.14.0
 // @namespace	https://github.com/tehstone/IngressDronePath
 // @downloadURL	https://github.com/tehstone/IngressDronePath/raw/master/dronePathTravelPlanner.user.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
@@ -73,7 +73,7 @@ function wrapper(plugin_info) {
 	let drawnCells = {};
 
 	map = window.map;
-	calculationMethods = 
+	calculationMethods =
 	{
 		"500/16": {"radius": 500, "gridSize": 16},
 		"570/17": {"radius": 570, "gridSize": 17}
@@ -375,7 +375,7 @@ function wrapper(plugin_info) {
 		}
 		return midpoints;
 	}
-	
+
 	function getCellFaceQuarterpointLatLngs(corners) {
 		let quarterpoints = [];
 		corners[4] = corners[0];
@@ -499,19 +499,7 @@ function wrapper(plugin_info) {
 			return;
 		}
 
-		// const droneButtonDiv = document.getElementById('droneButton');
-		// if (!droneButtonDiv) {
-			if (!thisPlugin.onPortalSelectedPending) {
-				thisPlugin.onPortalSelectedPending = true;
 
-				setTimeout(function () {
-					thisPlugin.onPortalSelectedPending = false;
-
-					$(portalDetails).append(`<div id="droneButton" class="DroneButtons">Drone Route: <a class="droneRoute" accesskey="r" onclick="window.plugin.DronePathTravelPlanner.switchStarPortal('route');return false;" title="Add this portal to the current route [r]"><span></span></a></div>`);
-					thisPlugin.updateStarPortal();
-				}, 0);
-			}
-		// }
 	}
 
 	thisPlugin.updateStarPortal = function () {
@@ -524,7 +512,7 @@ function wrapper(plugin_info) {
 
 	thisPlugin.switchStarPortal = function (type) {
 		const guid = window.selectedPortal;
-	
+
 		if (routePortals[guid]) {
 			delete routePortals[guid];
 			let starInLayer = routeLayers[guid];
@@ -604,7 +592,7 @@ function wrapper(plugin_info) {
 					html: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700.000000 627.000000" preserveAspectRatio="xMidYMid meet">
 <g transform="translate(0.000000,627.000000) scale(0.100000,-0.100000)" fill="#000000" fill-opacity="0.7" stroke="none">
 <path d="M3405 5459 c-27 -5 -61 -15 -75 -21 -64 -31 -190 -131 -190 -152 0 -6 -10 -20 -22 -31 -23 -20 -36 -41 -80 -126 -13 -24 -28 -49 -34 -56 -6 -6 -23 -35 -38 -65 -28 -55 -48 -90 -56 -98 -6 -6 -31 -50  62 -111 -13 -24 -29 -50 -36 -58 -8 -8 -25 -38 -38 -67 -13 -29 -28 -55 -33 -58 -5 -4 -19 -27 -32 -54 -12 -26 -30 -56 -39 -67 -10 -11 -21 -31 -25 -45 -4 -14 -10 -27 -14 -30 -16 -13 -51 -71 -57 -94 -3 -14  12 -30 -20 -37 -7 -6 -25 -35 -38 -63 -14 -29 -32 -59 -41 -66 -8 -7 -15 -18 -15 -24 0 -6 -15 -34 -32 -61 -18 -28 -41 -66 -50 -85 -19 -37 -39 -71 -48 -80 -3 -3 -13 -21 -23 -40 -40 -77 -76 -142 -87 -155 -7  8 -26 -41 -42 -72 -16 -32 -33 -60 -36 -63 -7 -5 -38 -59 -68 -120 -10 -19 -20 -37 -23 -40 -9 -8 -28 -40 -57 -98 -15 -30 -32 -59 -38 -65 -6 -7 -21 -32 -34 -56 -31 -61 -56 -105 -62 -111 -8 -8 -29 -43 -46 -80  10 -19 -27 -48 -38 -65 -12 -16 -32 -52 -46 -80 -13 -27 -29 -57 -36 -65 -7 -8 -24 -37 -40 -65 -51 -93 -63 -114 -87 -152 -13 -21 -30 -53 -38 -71 -8 -17 -17 -32 -20 -32 -3 0 -20 -28 -38 -62 -18 -35 -50  92 -72 -128 -22 -36 -47 -81 -56 -100 -10 -19 -23 -41 -31 -49 -8 -8 -24 -37 -37 -66 -13 -29 -31 -58 -40 -65 -8 -7 -15 -18 -15 -24 0 -6 -15 -35 -34 -63 -19 -29 -38 -63 -42 -75 -4 -13 -20 -39 -35 -58 -16 -19  29 -38 -29 -43 0 -9 -24 -68 -41 -99 -5 -10 -9 -26 -9 -36 0 -10 -5 -23 -12 -30 -14 -14 -16 -203 -1 -234 6 -13 18 -39 26 -58 9 -19 29 -48 46 -64 17 -17 31 -35 31 -40 0 -6 9 -16 19 -21 11 -6 36 -19 58  29 21 -11 40 -22 43 -25 3 -4 21 -13 40 -21 30 -13 181 -15 1100 -18 658 -1 1068 -6 1074 -12 6 -6 14 -6 21 0 7 6 423 11 1086 12 794 2 1079 6 1094 15 11 6 45 23 75 37 56 26 155 118 178 166 7 14 17 50 23 80 5  0 13 68 16 83 3 16 1 38 -5 50 -6 12 -13 44 -16 72 -4 27 -11 54 -16 59 -6 6 -10 17 -10 26 0 18 -52 124 -73 149 -8 9 -21 32 -31 51 -18 39 -38 72 -47 80 -3 3 -13 21 -23 40 -23 46 -78 144 -91 161 -6 8 -17  8 -25 44 -8 17 -24 44 -36 60 -11 17 -28 46 -38 65 -17 37 -38 72 -46 80 -6 6 -41 69 -66 120 -10 19 -20 37 -23 40 -9 8 -28 41 -48 80 -15 31 -52 94 -90 156 -7 10 -20 35 -30 54 -9 19 -19 37 -22 40 -9 8 -28 41  58 100 -15 30 -30 57 -34 60 -6 5 -35 55 -75 130 -11 19 -21 37 -24 40 -10 10 -31 46 -57 100 -15 30 -33 61 -41 69 -8 8 -24 37 -37 66 -13 29 -31 58 -40 65 -8 7 -15 18 -15 24 0 6 -16 34 -35 63 -19 28 -37  3 -41 77 -3 14 -10 26 -14 26 -5 0 -23 29 -41 65 -17 36 -38 70 -45 76 -8 6 -14 16 -14 21 0 5 -16 34 -35 64 -19 30 -35 57 -35 59 0 3 -12 24 -27 48 -15 23 -37 62 -50 87 -24 47 -44 81 -53 90 -3 3 -13 21 -22  0 -10 19 -24 44 -30 55 -35 55 -76 124 -91 155 -19 38 -39 72 -47 80 -6 6 -41 69 -66 120 -10 19 -20 37 -23 40 -9 8 -29 41 -47 80 -10 19 -23 42 -30 50 -13 15 -57 94 -90 160 -10 19 -20 37 -23 40 -9 7 -28 41  48 80 -9 19 -27 49 -40 66 -13 17 -23 35 -23 39 0 5 -12 21 -26 36 -15 15 -32 38 -38 50 -12 26 -114 108 -133 109 -7 0 -13 3 -13 8 0 4 -12 12 -27 19 -62 25 -150 34 -218 22z"></path></g></svg>`,
-		
+
 					iconSize: L.point(50, 58),
 					iconAnchor: [25, 52],
 					id: 'routel' + guid.replace('.', '')
@@ -687,12 +675,10 @@ function wrapper(plugin_info) {
 	}
 
 	thisPlugin.LoadManageRoute = function() {
-		let html = '<div class="configList">';
+		let html = '<div class="routeManagerDiv">';
 
 		if (Object.keys(savedRoutes).length > 0) {
-			html += '<div class="configLay">'
-			html += '<span class="deleteheader">Delete</span><span class="loadheader">Load</span>';
-			html += '</div>';
+			html += '<div class="routeList" id="routeList">'
 			Object.keys(savedRoutes).forEach(function (rid){
 				html += thisPlugin.htmlConfig(rid);
 			});
@@ -700,10 +686,10 @@ function wrapper(plugin_info) {
 			html += '<p>No saved Routes.</p>';
 		}
 
-		html += '</div>';
+		html += '</div><div><button class="importone" onclick="window.plugin.DronePathTravelPlanner.importOneRoute()">Import route</button><p></div>';
 
 		dialog({
-			title: 'Saved Routes',
+			title: 'Load/Manage Saved Routes',
 			html: '<div id="routeManager">'+html+'</div>',
 			dialogClass: 'ui-dialog-routemanager-main',
 			minWidth: 400,
@@ -713,9 +699,10 @@ function wrapper(plugin_info) {
 	thisPlugin.htmlConfig = function(ID){
 		const name = savedRoutes[ID].name;
 		let html = '';
-		html += '<div class="configLay" data-layer="'+ID+'" id="rdelete'+ID+'">';
-		html += '<a class="btn delete" onclick="window.plugin.DronePathTravelPlanner.deleteRoute(\''+ID+'\');return false;">X</a>';
-		html += '<a class="btn action" onclick="window.plugin.DronePathTravelPlanner.loadRoute(\''+ID+'\');return false;">'+ name +'</a>';
+		html += '<div class="routeList" data-layer="'+ID+'" id="rdelete'+ID+'">';
+		html += '<a class="btn delete" onclick="window.plugin.DronePathTravelPlanner.deleteRoute(\''+ID+'\');return false;" title="Delete this route.">X</a>';
+		html += '<a class="btn action" onclick="window.plugin.DronePathTravelPlanner.loadRoute(\''+ID+'\');return false;" title="Load this route.">'+ name +'</a>';
+		html += '<a class="btn exportone" onclick="window.plugin.DronePathTravelPlanner.exportOneRoute(\''+ID+'\');return false;" title="Exports this route to a JSON file.">Export</a>';
 		html += '</div>';
 		return html;
 	}
@@ -739,6 +726,56 @@ function wrapper(plugin_info) {
 		routePortals = savedRoutes[guid].portals;
 		thisPlugin.addAllMarkers();
 		thisPlugin.saveRoutes();
+	};
+
+	thisPlugin.exportOneRoute = function(guid) {
+		const routeName = savedRoutes[guid].name;
+		thisPlugin.saveToFile(savedRoutes[guid], routeName + '-export.json');
+	};
+
+	thisPlugin.saveToFile = function(text, filename) {
+		if (typeof text != 'string') {
+			text = JSON.stringify(text);
+		}
+
+		if (typeof window.saveFile != 'undefined') {
+			window.saveFile(text, filename, 'application/json');
+			return;
+		}
+	};
+
+	thisPlugin.importOneRoute = function() {
+		thisPlugin.readFromFile(function (content) {
+			const route = JSON.parse(content);
+			if ("id" in route &&
+			    "name" in route &&
+				"portals" in route) {
+				const rid = uuidv4();
+				savedRoutes[rid] = {
+					id: rid,
+					name: route.name,
+					portals: route.portals
+				}
+				thisPlugin.saveRoutes();
+				const rld = document.getElementById("routeList");
+				const newRouteDiv = thisPlugin.htmlConfig(rid);
+				rld.insertAdjacentHTML('beforeend', newRouteDiv);
+				//rld.append(newRouteDiv);
+				//thisPlugin.LoadManageRoute();
+			} else {
+				return alert("Invalid route file.");
+			}
+		});
+	};
+
+	thisPlugin.readFromFile = function(callback) {
+		if (typeof L.FileListLoader != 'undefined') {
+			L.FileListLoader.loadFiles({accept: 'application/json'})
+				.on('load',function (e) {
+					callback(e.reader.result);
+				});
+			return;
+		}
 	};
 
 	function showSettingsDialog() {
@@ -905,7 +942,6 @@ function wrapper(plugin_info) {
 				droneLayer.addLayer(dGridLayerGroup);
 			}
 		}
-
 	}
 
 	function determineCellGridInRange(centerPoint, gridLevel) {
@@ -973,10 +1009,10 @@ function wrapper(plugin_info) {
 	}
 
 	function highlightOneWayJumps(portalsInRange) {
-		const circlePoint = portalDroneIndicator.getLatLng(); 
+		const circlePoint = portalDroneIndicator.getLatLng();
 		const centerPointCell = S2.S2Cell.FromLatLng(getLatLngPoint(circlePoint), calculationMethods[settings.calculationMethod]["gridSize"]);
 		const searchLatLng = L.latLng(47.481489,-122.196868);
-		
+
 		portalsInRange.forEach(portal => {
 			const portalPoint = new LatLng(portal._latlng.lat, portal._latlng.lng);
 			if (haversine(portalPoint.lat, portalPoint.lng, circlePoint.lat, circlePoint.lng) > calculationMethods[settings.calculationMethod]["radius"]) {
@@ -1006,7 +1042,6 @@ function wrapper(plugin_info) {
 	}
 
 	function isCellinRange(cell, centerLatLng) {
-		//const circlePoints = portalDroneIndicator.getLatLng(); 
 		const corners = cell.getCornerLatLngs();
 		for (let i = 0; i < corners.length; i++) {
 			if (haversine(corners[i].lat, corners[i].lng, centerLatLng.lat, centerLatLng.lng) < calculationMethods[settings.calculationMethod]["radius"]) {
@@ -1026,7 +1061,6 @@ function wrapper(plugin_info) {
 			}
 		}
 		return false;
-		
 	};
 
 	function haversine(lat1, lon1, lat2, lon2) {
@@ -1201,11 +1235,11 @@ function wrapper(plugin_info) {
 			text-align:center;
 		}
 
-		#routeManager .configList{
+		#routeManager .routeManagerDiv{
 			margin-top:12px;
 		}
 
-		#routeManager .configList .configLay{
+		#routeManager .routeManagerDiv .routeList{
 			margin:7px 0 0;
 		}
 
@@ -1214,41 +1248,44 @@ function wrapper(plugin_info) {
 			color:#ffce00;
 			border:1px solid #ffce00;
 			padding:3px 0;
-			margin:10px 0 10px 10px;
-			width:80%;
+			margin:10px 0 10px 5px;
+			width:70%;
 			text-align:center;
 			background:rgba(8,48,78,.9);
 		}
 
 		#routeManager a.btn.delete{
-			width: 8%;
+			width: 7%;
 			color: red;
 		}
 
-		#routeManager span.loadheader {
-			font-weight: bold;
-			display:inline-block;
-			color:#ffce00;
-			padding:3px 0;
-			margin:5px 0 10px 10px;
-			width:80%;
-			text-align:center;
+		#routeManager a.btn.exportone{
+			width: 14%;
+			color: white;
 		}
 
-		#routeManager span.deleteheader {
+		#routeManager button.importone{
+			width:50%
+			padding: 18px 36px;
+			text-align: center;
+			text-decoration: none;
+			display: block;
 			font-weight: bold;
-			display:inline-block;
-			color:red;
-			padding:3px 0;
-			margin:5px 0 10px 10px;
-			width:8%;
-			text-align:center;
+			font-size: 14px;
+			margin: 4px 2px;
+			cursor: pointer;
+			transition-duration: 0.4s;
+		}
+
+		#routeManager button.importone:hover{
+			color:rgba(8,48,78,.9);
+			background:#ffce00;
 		}
 
 		.ui-dialog-routemanager-config dl{
 			margin-left:10px;
 		}
-		
+
 		.ui-dialog-routemanager-config dl dt{
 			color:#ffce00;
 			margin:9px 0 3px;
@@ -1258,7 +1295,7 @@ function wrapper(plugin_info) {
 			list-style:disc;
 			display:list-item;
 		}
-		
+
 		#routeManager .red, .ui-dialog-routemanager-config .red{
 			border-color:#f44 !important;
 			color:#f44 !important;
@@ -1272,16 +1309,6 @@ function wrapper(plugin_info) {
 		#routeManager label{
 			width:29%;
 			display:inline-block;
-		}
-
-		#routeManager button{
-			width:10%;
-			min-width:0;
-			cursor:pointer;
-			border-width:1px;
-			border:1px solid #fff;
-			color:#fff;
-			background:none;
 		}
 		`).appendTo('head');
 	}
