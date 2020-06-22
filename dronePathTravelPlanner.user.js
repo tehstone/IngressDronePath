@@ -488,7 +488,7 @@ function wrapper(plugin_info) {
 		toolbox.appendChild(buttonDrone);
 		thisPlugin.setupCSS();
 
-		thisPlugin.addAllMarkers()
+		thisPlugin.addAllMarkers();
 	}
 
 	thisPlugin.onPortalSelectedPending = false;
@@ -645,22 +645,25 @@ function wrapper(plugin_info) {
 		}
 	};
 
-	thisPlugin.resetCurrentRoute = function() {
-		if (confirm('Current Route will be deleted. Are you sure?', '')) {
-			for (let pid in routeLayers) {
-				try {
-					const starInLayer = routeLayers[pid];
-					routeLayerGroup.removeLayer(starInLayer);
-					delete routeLayers[pid];
-				}
-				catch(err) {
-					console.log(err);
-					console.log(pid);
-				}
+	thisPlugin.resetCurrentRoute = function(confirmReset=true) {
+		if (confirmReset) {
+			if (confirm('Current Route will be deleted. Are you sure?', '') == false) {
+				return;
 			}
-			routePortals = {};
-			thisPlugin.saveRoutes();
 		}
+		for (let pid in routeLayers) {
+			try {
+				const starInLayer = routeLayers[pid];
+				routeLayerGroup.removeLayer(starInLayer);
+				delete routeLayers[pid];
+			}
+			catch(err) {
+				console.log(err);
+				console.log(pid);
+			}
+		}
+		routePortals = {};
+		thisPlugin.saveRoutes();
 	};
 
 	thisPlugin.saveCurrentRoute = function() {
@@ -682,6 +685,61 @@ function wrapper(plugin_info) {
 			return v.toString(16);
 		});
 	}
+
+	thisPlugin.LoadManageRoute = function() {
+		let html = '<div class="configList">';
+
+		if (Object.keys(savedRoutes).length > 0) {
+			html += '<div class="configLay">'
+			html += '<span class="deleteheader">Delete</span><span class="loadheader">Load</span>';
+			html += '</div>';
+			Object.keys(savedRoutes).forEach(function (rid){
+				html += thisPlugin.htmlConfig(rid);
+			});
+		} else {
+			html += '<p>No saved Routes.</p>';
+		}
+
+		html += '</div>';
+
+		dialog({
+			title: 'Saved Routes',
+			html: '<div id="routeManager">'+html+'</div>',
+			dialogClass: 'ui-dialog-routemanager-main',
+			minWidth: 400,
+		});
+	}
+
+	thisPlugin.htmlConfig = function(ID){
+		const name = savedRoutes[ID].name;
+		let html = '';
+		html += '<div class="configLay" data-layer="'+ID+'" id="rdelete'+ID+'">';
+		html += '<a class="btn delete" onclick="window.plugin.DronePathTravelPlanner.deleteRoute(\''+ID+'\');return false;">X</a>';
+		html += '<a class="btn action" onclick="window.plugin.DronePathTravelPlanner.loadRoute(\''+ID+'\');return false;">'+ name +'</a>';
+		html += '</div>';
+		return html;
+	}
+
+	thisPlugin.deleteRoute = function(guid) {
+		if (confirm('Are you sure you want to delete this route?', '')) {
+			delete savedRoutes[guid];
+			const rElem = document.getElementById('rdelete'+guid);
+			rElem.parentNode.removeChild(rElem);
+			thisPlugin.saveRoutes();
+		}
+	};
+
+	thisPlugin.loadRoute = function(guid) {
+		if (Object.keys(routePortals).length > 0) {
+			if (!confirm('Loading this route will overwrite the currently displayed route, if it is not saved it will be lost. Are you sure?', '')) {
+				return false;
+			}
+		}
+		thisPlugin.resetCurrentRoute(false);
+		routePortals = savedRoutes[guid].portals;
+		thisPlugin.addAllMarkers();
+		thisPlugin.saveRoutes();
+	};
 
 	function showSettingsDialog() {
 		const html =
@@ -774,6 +832,7 @@ function wrapper(plugin_info) {
 		const content = `<div id="droneActionsBox">
 			<a onclick="window.plugin.DronePathTravelPlanner.resetCurrentRoute();return false;" title="Deletes all current route markers">Reset Current Route</a>
 			<a onclick="window.plugin.DronePathTravelPlanner.saveCurrentRoute();return false;" title="Save current route">Save Current Route</a>
+			<a onclick="window.plugin.DronePathTravelPlanner.LoadManageRoute();return false;" title="Load/Manage saved routes">Load/Manage Route</a>
 			</div>`;
 
 		const container = dialog({
@@ -1140,6 +1199,89 @@ function wrapper(plugin_info) {
 
 		#droneActionsBox{
 			text-align:center;
+		}
+
+		#routeManager .configList{
+			margin-top:12px;
+		}
+
+		#routeManager .configList .configLay{
+			margin:7px 0 0;
+		}
+
+		#routeManager a.btn{
+			display:inline-block;
+			color:#ffce00;
+			border:1px solid #ffce00;
+			padding:3px 0;
+			margin:10px 0 10px 10px;
+			width:80%;
+			text-align:center;
+			background:rgba(8,48,78,.9);
+		}
+
+		#routeManager a.btn.delete{
+			width: 8%;
+			color: red;
+		}
+
+		#routeManager span.loadheader {
+			font-weight: bold;
+			display:inline-block;
+			color:#ffce00;
+			padding:3px 0;
+			margin:5px 0 10px 10px;
+			width:80%;
+			text-align:center;
+		}
+
+		#routeManager span.deleteheader {
+			font-weight: bold;
+			display:inline-block;
+			color:red;
+			padding:3px 0;
+			margin:5px 0 10px 10px;
+			width:8%;
+			text-align:center;
+		}
+
+		.ui-dialog-routemanager-config dl{
+			margin-left:10px;
+		}
+		
+		.ui-dialog-routemanager-config dl dt{
+			color:#ffce00;
+			margin:9px 0 3px;
+		}
+		.ui-dialog-routemanager-config dl dd{
+			margin:2px 0 0 17px;
+			list-style:disc;
+			display:list-item;
+		}
+		
+		#routeManager .red, .ui-dialog-routemanager-config .red{
+			border-color:#f44 !important;
+			color:#f44 !important;
+		}
+
+		#routeManager label, #routeManager label input{
+			text-align:center;
+			cursor:pointer;
+		}
+
+		#routeManager label{
+			width:29%;
+			display:inline-block;
+		}
+
+		#routeManager button{
+			width:10%;
+			min-width:0;
+			cursor:pointer;
+			border-width:1px;
+			border:1px solid #fff;
+			color:#fff;
+			background:none;
 		}
 		`).appendTo('head');
 	}
