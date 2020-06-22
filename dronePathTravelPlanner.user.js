@@ -750,6 +750,22 @@ function wrapper(plugin_info) {
 			if ("id" in route &&
 			    "name" in route &&
 				"portals" in route) {
+
+				let valid = true;
+				Object.keys(route.portals).forEach(function (key){
+					const portal = route.portals[key];
+					if (!("guid" in portal &&
+						  "lat" in portal &&
+						  "lng" in portal &&
+						  "name" in portal)) {
+						valid = false;
+						return;
+					}
+				});
+				if (!valid) {
+					return alert("Invalid route file.");
+				}
+
 				const rid = uuidv4();
 				savedRoutes[rid] = {
 					id: rid,
@@ -760,8 +776,6 @@ function wrapper(plugin_info) {
 				const rld = document.getElementById("routeList");
 				const newRouteDiv = thisPlugin.htmlConfig(rid);
 				rld.insertAdjacentHTML('beforeend', newRouteDiv);
-				//rld.append(newRouteDiv);
-				//thisPlugin.LoadManageRoute();
 			} else {
 				return alert("Invalid route file.");
 			}
