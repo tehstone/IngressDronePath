@@ -2,7 +2,7 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.11.0
+// @version 0.12.0
 // @namespace	https://github.com/tehstone/IngressDronePath
 // @downloadURL	https://github.com/tehstone/IngressDronePath/raw/master/dronePathTravelPlanner.user.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
@@ -25,6 +25,7 @@ function wrapper(plugin_info) {
 
 	const KEY_SETTINGS = "plugin-drone-path-planner-settings";
 	const KEY_ROUTES = "plugin-drone-path-planner-routes"
+	const THEORETICAL_KEY_RANGE = 1250;
 
 	// Use own namespace for plugin
 	window.plugin.DronePathTravelPlanner = function () {};
@@ -60,6 +61,7 @@ function wrapper(plugin_info) {
 	}
 
 	let routePortals = {};
+	let savedRoutes = {};
 	window.portalDroneIndicator	= null;
 	window.portalDroneIndicatorKey = null;
 	droneLayer = null;
@@ -130,6 +132,7 @@ function wrapper(plugin_info) {
 		createThrottledTimer('saveRoutes', function () {
 			localStorage[KEY_ROUTES] = JSON.stringify({
 				currentRoute: routePortals,
+				savedRoutes: savedRoutes,
 			});
 		});
 	}
@@ -137,6 +140,7 @@ function wrapper(plugin_info) {
 	thisPlugin.loadRoutes = function() {
 		const tmp = JSON.parse(localStorage[KEY_ROUTES] || '{}');
 		routePortals = tmp.currentRoute || {};
+		savedRoutes = tmp.savedRoutes || {};
 	}
 
 	const d2r = Math.PI / 180.0;
@@ -389,65 +393,65 @@ function wrapper(plugin_info) {
 	}
 
 	function initSvgIcon() {
-			L.DivIcon.SVGIcon = L.DivIcon.extend({
-				options: {
-					'className': 'svg-icon',
-					'iconAnchor': null, //defaults to [iconSize.x/2, iconSize.y] (point tip)
-					'iconSize': L.point(48, 48)
-				},
-				initialize: function (options) {
-					options = L.Util.setOptions(this, options);
+		L.DivIcon.SVGIcon = L.DivIcon.extend({
+			options: {
+				'className': 'svg-icon',
+				'iconAnchor': null, //defaults to [iconSize.x/2, iconSize.y] (point tip)
+				'iconSize': L.point(48, 48)
+			},
+			initialize: function (options) {
+				options = L.Util.setOptions(this, options);
 
-					//iconSize needs to be converted to a Point object if it is not passed as one
-					options.iconSize = L.point(options.iconSize);
+				//iconSize needs to be converted to a Point object if it is not passed as one
+				options.iconSize = L.point(options.iconSize);
 
-					if (!options.iconAnchor) {
-						options.iconAnchor = L.point(Number(options.iconSize.x) / 2, Number(options.iconSize.y));
-					} else {
-						options.iconAnchor = L.point(options.iconAnchor);
-					}
-				},
-
-				// https://github.com/tonekk/Leaflet-Extended-Div-Icon/blob/master/extended.divicon.js#L13
-				createIcon: function (oldIcon) {
-					let div = L.DivIcon.prototype.createIcon.call(this, oldIcon);
-
-					if (this.options.id) {
-						div.id = this.options.id;
-					}
-
-					if (this.options.style) {
-						for (let key in this.options.style) {
-							div.style[key] = this.options.style[key];
-						}
-					}
-					return div;
+				if (!options.iconAnchor) {
+					options.iconAnchor = L.point(Number(options.iconSize.x) / 2, Number(options.iconSize.y));
+				} else {
+					options.iconAnchor = L.point(options.iconAnchor);
 				}
-			});
+			},
 
-			L.divIcon.svgIcon = function (options) {
-				return new L.DivIcon.SVGIcon(options);
-			};
+			// https://github.com/tonekk/Leaflet-Extended-Div-Icon/blob/master/extended.divicon.js#L13
+			createIcon: function (oldIcon) {
+				let div = L.DivIcon.prototype.createIcon.call(this, oldIcon);
 
-			L.Marker.SVGMarker = L.Marker.extend({
-				options: {
-					'iconFactory': L.divIcon.svgIcon,
-					'iconOptions': {}
-				},
-				initialize: function (latlng, options) {
-					options = L.Util.setOptions(this, options);
-					options.icon = options.iconFactory(options.iconOptions);
-					this._latlng = latlng;
-				},
-				onAdd: function (map) {
-					L.Marker.prototype.onAdd.call(this, map);
+				if (this.options.id) {
+					div.id = this.options.id;
 				}
-			});
 
-			L.marker.svgMarker = function (latlng, options) {
-				return new L.Marker.SVGMarker(latlng, options);
-			};
-		}
+				if (this.options.style) {
+					for (let key in this.options.style) {
+						div.style[key] = this.options.style[key];
+					}
+				}
+				return div;
+			}
+		});
+
+		L.divIcon.svgIcon = function (options) {
+			return new L.DivIcon.SVGIcon(options);
+		};
+
+		L.Marker.SVGMarker = L.Marker.extend({
+			options: {
+				'iconFactory': L.divIcon.svgIcon,
+				'iconOptions': {}
+			},
+			initialize: function (latlng, options) {
+				options = L.Util.setOptions(this, options);
+				options.icon = options.iconFactory(options.iconOptions);
+				this._latlng = latlng;
+			},
+			onAdd: function (map) {
+				L.Marker.prototype.onAdd.call(this, map);
+			}
+		});
+
+		L.marker.svgMarker = function (latlng, options) {
+			return new L.Marker.SVGMarker(latlng, options);
+		};
+	}
 
 	// The entry point for this plugin.
 	function setup() {
@@ -460,6 +464,8 @@ function wrapper(plugin_info) {
 			"portalSelected",
 			window.drawDroneRange
 		);
+
+		window.addHook('portalSelected', thisPlugin.addToPortalDetails);
 
 		droneLayer = L.layerGroup();
 		window.addLayerGroup('Drone Grid', droneLayer, true);
@@ -493,8 +499,8 @@ function wrapper(plugin_info) {
 			return;
 		}
 
-		const droneButtonDiv = document.getElementById('droneButton');
-		if (!droneButtonDiv) {
+		// const droneButtonDiv = document.getElementById('droneButton');
+		// if (!droneButtonDiv) {
 			if (!thisPlugin.onPortalSelectedPending) {
 				thisPlugin.onPortalSelectedPending = true;
 
@@ -505,7 +511,7 @@ function wrapper(plugin_info) {
 					thisPlugin.updateStarPortal();
 				}, 0);
 			}
-		}
+		// }
 	}
 
 	thisPlugin.updateStarPortal = function () {
@@ -644,11 +650,8 @@ function wrapper(plugin_info) {
 			for (let pid in routeLayers) {
 				try {
 					const starInLayer = routeLayers[pid];
-					//const starlInLayer = routeLayers[pid + "l"];
 					routeLayerGroup.removeLayer(starInLayer);
-					//routeLayerGroup.removeLayer(starlInLayer);
 					delete routeLayers[pid];
-					//delete routeLayers[pid + "l"];
 				}
 				catch(err) {
 					console.log(err);
@@ -658,6 +661,26 @@ function wrapper(plugin_info) {
 			routePortals = {};
 			thisPlugin.saveRoutes();
 		}
+	};
+
+	thisPlugin.saveCurrentRoute = function() {
+		const today  = new Date();
+		const routeName = prompt("Please provide a name for this route", "New Route " + today.toLocaleString());
+		const routeId = uuidv4();
+		const routeToSave = {
+			id: routeId,
+			name: routeName,
+			portals: routePortals
+		}
+		savedRoutes[routeId] = routeToSave;
+		thisPlugin.saveRoutes();
+	};
+
+	function uuidv4() {
+		return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+			const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+			return v.toString(16);
+		});
 	}
 
 	function showSettingsDialog() {
@@ -750,6 +773,7 @@ function wrapper(plugin_info) {
 	function showActionsDialog() {
 		const content = `<div id="droneActionsBox">
 			<a onclick="window.plugin.DronePathTravelPlanner.resetCurrentRoute();return false;" title="Deletes all current route markers">Reset Current Route</a>
+			<a onclick="window.plugin.DronePathTravelPlanner.saveCurrentRoute();return false;" title="Save current route">Save Current Route</a>
 			</div>`;
 
 		const container = dialog({
@@ -760,8 +784,6 @@ function wrapper(plugin_info) {
 
 
 	window.drawDroneRange = function (guid) {
-		thisPlugin.addToPortalDetails();
-
 		portalDroneIndicator = null;
 		portalDroneIndicatorKey = null;
 		dGridLayerGroup.clearLayers();
@@ -779,7 +801,7 @@ function wrapper(plugin_info) {
 					)
 					dGridLayerGroup.addLayer(portalDroneIndicator);
 					if (settings.keyRange) {
-						portalDroneIndicatorKey = L.circle(coord, calcMethod["radius"] * 2,
+						portalDroneIndicatorKey = L.circle(coord, THEORETICAL_KEY_RANGE,
 						{ fill: false, color: settings.circleColor, weight: settings.circleWidth, interactive: false }
 					)
 						dGridLayerGroup.addLayer(portalDroneIndicatorKey);
