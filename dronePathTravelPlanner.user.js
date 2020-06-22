@@ -2,7 +2,7 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.10.2
+// @version 0.11.0
 // @namespace	https://github.com/tehstone/IngressDronePath
 // @downloadURL	https://github.com/tehstone/IngressDronePath/raw/master/dronePathTravelPlanner.user.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
@@ -470,10 +470,15 @@ function wrapper(plugin_info) {
 
 		const toolbox = document.getElementById("toolbox");
 
-		const buttonDrone = document.createElement("a");
+		let buttonDrone = document.createElement("a");
 		buttonDrone.textContent = "Drone Grid Settings";
 		buttonDrone.title = "Configuration for Drone Path Plugin";
 		buttonDrone.addEventListener("click", showSettingsDialog);
+		toolbox.appendChild(buttonDrone);
+		buttonDrone = document.createElement("a");
+		buttonDrone.textContent = "Drone Grid Actions";
+		buttonDrone.title = "Actions for Drone Path Plugin";
+		buttonDrone.addEventListener("click", showActionsDialog);
 		toolbox.appendChild(buttonDrone);
 		thisPlugin.setupCSS();
 
@@ -614,11 +619,10 @@ function wrapper(plugin_info) {
 		});
 
 		if (type === 'route') {
-			routeLayers[guid+"l"] = starl;
+			routeLayers[guid + "l"] = starl;
 			starl.addTo(routeLayerGroup);
 			routeLayers[guid] = star;
 			star.addTo(routeLayerGroup);
-			
 		}
 	};
 
@@ -634,6 +638,27 @@ function wrapper(plugin_info) {
 			}
 		}
 	};
+
+	thisPlugin.resetCurrentRoute = function() {
+		if (confirm('Current Route will be deleted. Are you sure?', '')) {
+			for (let pid in routeLayers) {
+				try {
+					const starInLayer = routeLayers[pid];
+					//const starlInLayer = routeLayers[pid + "l"];
+					routeLayerGroup.removeLayer(starInLayer);
+					//routeLayerGroup.removeLayer(starlInLayer);
+					delete routeLayers[pid];
+					//delete routeLayers[pid + "l"];
+				}
+				catch(err) {
+					console.log(err);
+					console.log(pid);
+				}
+			}
+			routePortals = {};
+			thisPlugin.saveRoutes();
+		}
+	}
 
 	function showSettingsDialog() {
 		const html =
@@ -719,6 +744,17 @@ function wrapper(plugin_info) {
 		showOneWayCB.addEventListener("change", (e) => {
 			settings.showOneWay = showOneWayCB.checked;
 			saveSettings();
+		});
+	};
+
+	function showActionsDialog() {
+		const content = `<div id="droneActionsBox">
+			<a onclick="window.plugin.DronePathTravelPlanner.resetCurrentRoute();return false;" title="Deletes all current route markers">Reset Current Route</a>
+			</div>`;
+
+		const container = dialog({
+			html: content,
+			title: 'Drone Grid Actions'
 		});
 	};
 
@@ -1061,7 +1097,28 @@ function wrapper(plugin_info) {
 
 		.DroneButtons span {
 			float: none;
-		}		
+		}
+
+		#droneActionsBox a{
+			display:block;
+			color:#ffce00;
+			border:1px solid #ffce00;
+			padding:3px 0;
+			margin:10px auto;
+			width:80%;
+			text-align:center;
+			background:rgba(8,48,78,.9);
+		}
+		#droneActionsBox a.disabled,
+		#droneActionsBox a.disabled:hover{
+			color:#666;
+			border-color:#666;
+			text-decoration:none;
+		}
+
+		#droneActionsBox{
+			text-align:center;
+		}
 		`).appendTo('head');
 	}
 }
