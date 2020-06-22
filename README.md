@@ -21,6 +21,9 @@ Once the plugin is installed, selecting a portal will draw a 500 meter ring arou
 Additionally, portals can be marked as part of the current route and all portals marked in this way will display on the map with the Drone icon. This mark is saved when the page is refreshed.
 ![Example Screenshot](https://i.imgur.com/uQbdVEq.png)
 
+Once you've created a route you can save or reset it, saved routes can be exported/imported and loaded for future use.
+![Example Screenshot](https://i.imgur.com/BEhni5X.png) ![Example Screenshot](https://i.imgur.com/llvfijF.png)
+
 ### Configuring the Plugin
 Selecting the "Drone Grid Settings" Option in the sidebar will show a variety of configuration options:
 ![Screenshot](https://i.imgur.com/DHkOdkt.png)
