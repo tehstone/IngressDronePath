@@ -2,7 +2,7 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.14.1
+// @version 0.14.2
 // @namespace	https://github.com/tehstone/IngressDronePath
 // @downloadURL	https://github.com/tehstone/IngressDronePath/raw/master/dronePathTravelPlanner.user.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
@@ -499,7 +499,16 @@ function wrapper(plugin_info) {
 			return;
 		}
 
+		if (!thisPlugin.onPortalSelectedPending) {
+			thisPlugin.onPortalSelectedPending = true;
 
+			setTimeout(function () {
+				thisPlugin.onPortalSelectedPending = false;
+
+				$(portalDetails).append(`<div id="droneButton" class="DroneButtons">Drone Route: <a class="droneRoute" accesskey="r" onclick="window.plugin.DronePathTravelPlanner.switchStarPortal('route');return false;" title="Add this portal to the current route [r]"><span></span></a></div>`);
+				thisPlugin.updateStarPortal();
+			}, 0);
+		}
 	}
 
 	thisPlugin.updateStarPortal = function () {
