@@ -22,7 +22,8 @@ Additionally, portals can be marked as part of the current route and all portals
 ![Example Screenshot](https://i.imgur.com/uQbdVEq.png)
 
 Once you've created a route you can save or reset it, saved routes can be exported/imported and loaded for future use.
-![Example Screenshot](https://i.imgur.com/BEhni5X.png) ![Example Screenshot](https://i.imgur.com/llvfijF.png)
+
+![Example Screenshot](https://i.imgur.com/BEhni5X.png) ![Example Screenshot](https://i.imgur.com/27sT7ZY.png)
 
 ### Configuring the Plugin
 Selecting the "Drone Grid Settings" Option in the sidebar will show a variety of configuration options:
