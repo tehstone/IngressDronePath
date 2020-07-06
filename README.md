@@ -19,6 +19,7 @@ Once the plugin is installed, selecting a portal will draw a 500 meter ring arou
 ![Example Screenshot](https://i.imgur.com/jR2MFaa.png)
 
 Additionally, portals can be marked as part of the current route and all portals marked in this way will display on the map with the Drone icon. This mark is saved when the page is refreshed.
+
 ![Example Screenshot](https://i.imgur.com/uQbdVEq.png)
 
 Once you've created a route you can save or reset it, saved routes can be exported/imported and loaded for future use.
