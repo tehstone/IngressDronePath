@@ -2,7 +2,7 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.14.2
+// @version 0.15.0
 // @namespace	https://github.com/tehstone/IngressDronePath
 // @downloadURL	https://github.com/tehstone/IngressDronePath/raw/master/dronePathTravelPlanner.user.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
@@ -707,12 +707,28 @@ function wrapper(plugin_info) {
 
 	thisPlugin.htmlConfig = function(ID){
 		const name = savedRoutes[ID].name;
+		const routeLength = Object.keys(savedRoutes[ID]["portals"]).length;
+		const firstPortal = savedRoutes[ID]["portals"][Object.keys(savedRoutes[ID]["portals"])[0]];
+		const lastPortal = savedRoutes[ID]["portals"][Object.keys(savedRoutes[ID]["portals"])[routeLength-1]];
+		const firstPortalUrl = "https://intel.ingress.com/?pll="+firstPortal["lat"]+","+firstPortal["lng"];
+		const lastPortalUrl = "https://intel.ingress.com/?pll="+lastPortal["lat"]+","+lastPortal["lng"];
+		let distance = haversine(firstPortal["lat"], firstPortal["lng"], lastPortal["lat"], lastPortal["lng"]) / 1000;
+		distance = distance.toFixed(1);
+
 		let html = '';
 		html += '<div class="routeList" data-layer="'+ID+'" id="rdelete'+ID+'">';
 		html += '<a class="btn delete" onclick="window.plugin.DronePathTravelPlanner.deleteRoute(\''+ID+'\');return false;" title="Delete this route.">X</a>';
 		html += '<a class="btn action" onclick="window.plugin.DronePathTravelPlanner.loadRoute(\''+ID+'\');return false;" title="Load this route.">'+ name +'</a>';
 		html += '<a class="btn exportone" onclick="window.plugin.DronePathTravelPlanner.exportOneRoute(\''+ID+'\');return false;" title="Exports this route to a JSON file.">Export</a>';
 		html += '</div>';
+		html += '<div>';
+		html += '<a href='+firstPortalUrl+'>Start portal</a>';
+		html += ' <a href='+lastPortalUrl+'>End portal</a>';
+		html += ' - Jump count: ' + routeLength;
+		html += ' | Route distance: ' + distance + 'km';
+		html += '</div><hr>';
+
+		
 		return html;
 	}
 
