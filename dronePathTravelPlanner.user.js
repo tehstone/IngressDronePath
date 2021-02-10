@@ -2,7 +2,7 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.15.1
+// @version 0.15.3
 // @namespace	https://github.com/tehstone/IngressDronePath
 // @downloadURL	https://github.com/tehstone/IngressDronePath/raw/master/dronePathTravelPlanner.user.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
@@ -120,6 +120,9 @@ function wrapper(plugin_info) {
 		}
 		if (!"showOneWay" in settings) {
 			settings.showOneWay = true
+		}
+		if (!"invertMarker" in settings) {
+			settings.invertMarker = false
 		}
 	}
 
@@ -471,8 +474,9 @@ function wrapper(plugin_info) {
 		window.addLayerGroup('Drone Grid', droneLayer, true);
 		dGridLayerGroup = L.layerGroup();
 
-		routeLayerGroup = L.layerGroup();
+		routeLayerGroup = L.featureGroup();
 		window.addLayerGroup('Drone Route', routeLayerGroup, true);
+		routeLayerGroup.bringToFront();
 
 		const toolbox = document.getElementById("toolbox");
 
@@ -506,6 +510,7 @@ function wrapper(plugin_info) {
 				thisPlugin.onPortalSelectedPending = false;
 
 				$(portalDetails).append(`<div id="droneButton" class="DroneButtons">Drone Route: <a class="droneRoute" accesskey="r" onclick="window.plugin.DronePathTravelPlanner.switchStarPortal('route');return false;" title="Add this portal to the current route [r]"><span></span></a></div>`);
+				$(portalDetails).append(`<div class="checkbox"><label><input type="checkbox" id="requiresKey">Key required</label><span></span></div>`);
 				thisPlugin.updateStarPortal();
 			}, 0);
 		}
@@ -560,15 +565,20 @@ function wrapper(plugin_info) {
 		if (type === 'route') {
 			const route = routePortals[guid];
 
+			let markerSvg = `<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 159.12 145.78"><defs><style>.cls-1{fill:#ffffff;} .cls-2{fill:#000000;}</style></defs><path class="cls-2" d="M79.56,136.58H20.36A12.42,12.42,0,0,1,9.6,117.94L39.2,66.68,68.8,15.41a12.42,12.42,0,0,1,21.52,0l29.6,51.27,29.6,51.26a12.43,12.43,0,0,1-10.76,18.64Z"/><path class="cls-1" d="M103,91.75a40.09,40.09,0,0,0-10.58,37.76h-4.1a44.22,44.22,0,0,1,27.75-50.78l2,3.53A40,40,0,0,0,103,91.75Z"/><path class="cls-1" d="M114,102.71a24.56,24.56,0,0,0-5.27,26.8h-5.33A29.47,29.47,0,0,1,123.5,91.59l2.59,4.5A24.41,24.41,0,0,0,114,102.71Z"/><path class="cls-1" d="M71.88,120a43.25,43.25,0,0,1-1,9.48h-4.1a40,40,0,0,0-26.1-47.38l2-3.53A44,44,0,0,1,71.88,120Z"/><path class="cls-1" d="M57.38,120a28.87,28.87,0,0,1-1.57,9.48H50.47A24.51,24.51,0,0,0,32.67,96l2.62-4.52A29.49,29.49,0,0,1,57.38,120Z"/><path class="cls-1" d="M107.7,64.23a44,44,0,0,1-56.44-.42l2-3.54a40,40,0,0,0,52.37.43Z"/><path class="cls-1" d="M100.3,51.4a29.51,29.51,0,0,1-41.61-.48l2.62-4.54c.35.41.72.8,1.1,1.18a24.5,24.5,0,0,0,34.64,0h0c.22-.22.43-.44.64-.67Z"/><g id="Layer_3" data-name="Layer 3"><path class="cls-1" d="M142.26,120a11,11,0,1,1-11-11A11,11,0,0,1,142.26,120Z"/><path class="cls-1" d="M38.85,120a11,11,0,1,1-11-11A11,11,0,0,1,38.85,120Z"/><path class="cls-1" d="M90.7,30.25a11,11,0,1,1-11-11A11,11,0,0,1,90.7,30.25Z"/></g></svg>`;
+			if (settings.invertMarker) {
+				markerSvg = `<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 159.12 145.78"><defs><style>.cls-1{fill:#000000;}</style></defs><title>dronenet-key</title><path class="cls-1" d="M103,91.75a40.09,40.09,0,0,0-10.58,37.76h-4.1a44.22,44.22,0,0,1,27.75-50.78l2,3.53A40,40,0,0,0,103,91.75Z"/><path class="cls-1" d="M114,102.71a24.56,24.56,0,0,0-5.27,26.8h-5.33A29.47,29.47,0,0,1,123.5,91.59l2.59,4.5A24.41,24.41,0,0,0,114,102.71Z"/><path class="cls-1" d="M71.88,120a43.25,43.25,0,0,1-1,9.48h-4.1a40,40,0,0,0-26.1-47.38l2-3.53A44,44,0,0,1,71.88,120Z"/><path class="cls-1" d="M57.38,120a28.87,28.87,0,0,1-1.57,9.48H50.47A24.51,24.51,0,0,0,32.67,96l2.62-4.52A29.49,29.49,0,0,1,57.38,120Z"/><path class="cls-1" d="M107.7,64.23a44,44,0,0,1-56.44-.42l2-3.54a40,40,0,0,0,52.37.43Z"/><path class="cls-1" d="M100.3,51.4a29.51,29.51,0,0,1-41.61-.48l2.62-4.54c.35.41.72.8,1.1,1.18a24.5,24.5,0,0,0,34.64,0h0c.22-.22.43-.44.64-.67Z"/><g id="Layer_3" data-name="Layer 3"><path class="cls-1" d="M142.26,120a11,11,0,1,1-11-11A11,11,0,0,1,142.26,120Z"/><path class="cls-1" d="M38.85,120a11,11,0,1,1-11-11A11,11,0,0,1,38.85,120Z"/><path class="cls-1" d="M90.7,30.25a11,11,0,1,1-11-11A11,11,0,0,1,90.7,30.25Z"/></g></svg>`;
+			}
+
 			star = new L.Marker.SVGMarker([lat, lng], {
 				title: name,
 				iconOptions: {
 					className: 'route',
-					html: `<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 159.12 145.78"><defs><style>.cls-1{fill:#ffffff;}</style></defs><title>dronenet-key</title><path d="M79.56,136.58H20.36A12.42,12.42,0,0,1,9.6,117.94L39.2,66.68,68.8,15.41a12.42,12.42,0,0,1,21.52,0l29.6,51.27,29.6,51.26a12.43,12.43,0,0,1-10.76,18.64Z"/><path class="cls-1" d="M103,91.75a40.09,40.09,0,0,0-10.58,37.76h-4.1a44.22,44.22,0,0,1,27.75-50.78l2,3.53A40,40,0,0,0,103,91.75Z"/><path class="cls-1" d="M114,102.71a24.56,24.56,0,0,0-5.27,26.8h-5.33A29.47,29.47,0,0,1,123.5,91.59l2.59,4.5A24.41,24.41,0,0,0,114,102.71Z"/><path class="cls-1" d="M71.88,120a43.25,43.25,0,0,1-1,9.48h-4.1a40,40,0,0,0-26.1-47.38l2-3.53A44,44,0,0,1,71.88,120Z"/><path class="cls-1" d="M57.38,120a28.87,28.87,0,0,1-1.57,9.48H50.47A24.51,24.51,0,0,0,32.67,96l2.62-4.52A29.49,29.49,0,0,1,57.38,120Z"/><path class="cls-1" d="M107.7,64.23a44,44,0,0,1-56.44-.42l2-3.54a40,40,0,0,0,52.37.43Z"/><path class="cls-1" d="M100.3,51.4a29.51,29.51,0,0,1-41.61-.48l2.62-4.54c.35.41.72.8,1.1,1.18a24.5,24.5,0,0,0,34.64,0h0c.22-.22.43-.44.64-.67Z"/><g id="Layer_3" data-name="Layer 3"><path class="cls-1" d="M142.26,120a11,11,0,1,1-11-11A11,11,0,0,1,142.26,120Z"/><path class="cls-1" d="M38.85,120a11,11,0,1,1-11-11A11,11,0,0,1,38.85,120Z"/><path class="cls-1" d="M90.7,30.25a11,11,0,1,1-11-11A11,11,0,0,1,90.7,30.25Z"/></g></svg>`,
-// ed1c24
+                    html: markerSvg,
 					iconSize: L.point(32, 40),
 					iconAnchor: [16, 24],
-					id: 'routel' + guid.replace('.', '')
+					id: 'routel' + guid.replace('.', ''),
+					zIndex: 200
 				}
 			});
 		}
@@ -587,6 +597,7 @@ function wrapper(plugin_info) {
 		if (type === 'route') {
 			routeLayers[guid] = star;
 			star.addTo(routeLayerGroup);
+			routeLayerGroup.bringToFront();
 		}
 	};
 
@@ -689,7 +700,7 @@ function wrapper(plugin_info) {
 		html += ' | Route distance: ' + distance + 'km';
 		html += '</div><hr>';
 
-		
+
 		return html;
 	}
 
@@ -787,6 +798,7 @@ function wrapper(plugin_info) {
 					 <p><label for="colorHighlight">Portal Highlight Color</label><br><input type="color" id="colorHighlight" /></p>
 					 <p><label for="cbKeyRange">Display theoretical key range</label><br><input type="checkbox" id="cbKeyRange" /></p>
 					 <p><label for="cbShowOneWay">Display one-way jumps</label><br><input type="checkbox" id="cbShowOneWay" /></p>
+					 <p><label for="cbInvertMarker">Invert route marker</label><br><input type="checkbox" id="cbInvertMarker" /></p>
 					 <label for="selectCalculationType">Calculation Method</label><br>
 					 <select id="selectCalculationType">
 						 <option value="500/16">500m / L16 cells</option>
@@ -863,6 +875,24 @@ function wrapper(plugin_info) {
 			settings.showOneWay = showOneWayCB.checked;
 			saveSettings();
 		});
+
+		const invertMarkerCB = div.querySelector("#cbInvertMarker");
+		invertMarkerCB.checked = settings.invertMarker;
+		invertMarkerCB.addEventListener("change", (e) => {
+			settings.invertMarker = invertMarkerCB.checked;
+			saveSettings();
+			for (let pid in routeLayers) {
+				try {
+					const starInLayer = routeLayers[pid];
+					routeLayerGroup.removeLayer(starInLayer);
+				}
+				catch(err) {
+					console.log(err);
+					console.log(pid);
+				}
+			}
+			thisPlugin.addAllMarkers();
+		});
 	};
 
 	function showActionsDialog() {
@@ -911,17 +941,6 @@ function wrapper(plugin_info) {
 			}
 		}
 	};
-
-	setup.info = plugin_info; //add the script info data to the function as a property
-	// if IITC has already booted, immediately run the 'setup' function
-	if (window.iitcLoaded) {
-		setup();
-		} else {
-			if (!window.bootPlugins) {
-				window.bootPlugins = [];
-			}
-		window.bootPlugins.push(setup);
-	}
 
 
 	function updateMapGrid(gridSize) {
@@ -1208,6 +1227,8 @@ function wrapper(plugin_info) {
 		.DroneButtons {
 			color: #fff;
 			padding: 3px;
+			display: inline-block;
+			white-space: nowrap;
 		}
 
 		.DroneButtons span {
@@ -1311,6 +1332,17 @@ function wrapper(plugin_info) {
 			display:inline-block;
 		}
 		`).appendTo('head');
+	}
+
+	setup.info = plugin_info; //add the script info data to the function as a property
+	// if IITC has already booted, immediately run the 'setup' function
+	if (window.iitcLoaded) {
+		setup();
+		} else {
+			if (!window.bootPlugins) {
+				window.bootPlugins = [];
+			}
+		window.bootPlugins.push(setup);
 	}
 }
 
