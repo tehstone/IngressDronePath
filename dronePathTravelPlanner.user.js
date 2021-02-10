@@ -636,6 +636,11 @@ function wrapper(plugin_info) {
 	};
 
 	thisPlugin.saveCurrentRoute = function() {
+		if (!routePortals || Object.keys(routePortals).length < 1) {
+			alert("Cannot save a route with no portals.")
+			return;
+		}
+		
 		const today  = new Date();
 		const routeName = prompt("Please provide a name for this route", "New Route " + today.toLocaleString());
 		const routeId = uuidv4();
@@ -661,7 +666,10 @@ function wrapper(plugin_info) {
 		if (Object.keys(savedRoutes).length > 0) {
 			html += '<div class="routeList" id="routeList">'
 			Object.keys(savedRoutes).forEach(function (rid){
-				html += thisPlugin.htmlConfig(rid);
+				route_html = thisPlugin.htmlConfig(rid);
+				if (route_html) {
+					html += route_html;
+				}
 			});
 		} else {
 			html += '<p>No saved Routes.</p>';
@@ -680,6 +688,9 @@ function wrapper(plugin_info) {
 	thisPlugin.htmlConfig = function(ID){
 		const name = savedRoutes[ID].name;
 		const routeLength = Object.keys(savedRoutes[ID]["portals"]).length;
+		if (routeLength < 1)  {
+			return null;
+		}
 		const firstPortal = savedRoutes[ID]["portals"][Object.keys(savedRoutes[ID]["portals"])[0]];
 		const lastPortal = savedRoutes[ID]["portals"][Object.keys(savedRoutes[ID]["portals"])[routeLength-1]];
 		const firstPortalUrl = "https://intel.ingress.com/?pll="+firstPortal["lat"]+","+firstPortal["lng"];
