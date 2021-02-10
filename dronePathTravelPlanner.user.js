@@ -2,7 +2,7 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.15.3
+// @version 0.15.4
 // @namespace	https://github.com/tehstone/IngressDronePath
 // @downloadURL	https://github.com/tehstone/IngressDronePath/raw/master/dronePathTravelPlanner.user.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
@@ -123,6 +123,9 @@ function wrapper(plugin_info) {
 		}
 		if (!"invertMarker" in settings) {
 			settings.invertMarker = false
+		}
+		if (!"keyRangeDist" in settings) {
+			settings.keyRangeDist = 1250;
 		}
 	}
 
@@ -567,7 +570,7 @@ function wrapper(plugin_info) {
 
 			let markerSvg = `<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 159.12 145.78"><defs><style>.cls-1{fill:#ffffff;} .cls-2{fill:#000000;}</style></defs><path class="cls-2" d="M79.56,136.58H20.36A12.42,12.42,0,0,1,9.6,117.94L39.2,66.68,68.8,15.41a12.42,12.42,0,0,1,21.52,0l29.6,51.27,29.6,51.26a12.43,12.43,0,0,1-10.76,18.64Z"/><path class="cls-1" d="M103,91.75a40.09,40.09,0,0,0-10.58,37.76h-4.1a44.22,44.22,0,0,1,27.75-50.78l2,3.53A40,40,0,0,0,103,91.75Z"/><path class="cls-1" d="M114,102.71a24.56,24.56,0,0,0-5.27,26.8h-5.33A29.47,29.47,0,0,1,123.5,91.59l2.59,4.5A24.41,24.41,0,0,0,114,102.71Z"/><path class="cls-1" d="M71.88,120a43.25,43.25,0,0,1-1,9.48h-4.1a40,40,0,0,0-26.1-47.38l2-3.53A44,44,0,0,1,71.88,120Z"/><path class="cls-1" d="M57.38,120a28.87,28.87,0,0,1-1.57,9.48H50.47A24.51,24.51,0,0,0,32.67,96l2.62-4.52A29.49,29.49,0,0,1,57.38,120Z"/><path class="cls-1" d="M107.7,64.23a44,44,0,0,1-56.44-.42l2-3.54a40,40,0,0,0,52.37.43Z"/><path class="cls-1" d="M100.3,51.4a29.51,29.51,0,0,1-41.61-.48l2.62-4.54c.35.41.72.8,1.1,1.18a24.5,24.5,0,0,0,34.64,0h0c.22-.22.43-.44.64-.67Z"/><g id="Layer_3" data-name="Layer 3"><path class="cls-1" d="M142.26,120a11,11,0,1,1-11-11A11,11,0,0,1,142.26,120Z"/><path class="cls-1" d="M38.85,120a11,11,0,1,1-11-11A11,11,0,0,1,38.85,120Z"/><path class="cls-1" d="M90.7,30.25a11,11,0,1,1-11-11A11,11,0,0,1,90.7,30.25Z"/></g></svg>`;
 			if (settings.invertMarker) {
-				markerSvg = `<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 159.12 145.78"><defs><style>.cls-1{fill:#000000;}</style></defs><title>dronenet-key</title><path class="cls-1" d="M103,91.75a40.09,40.09,0,0,0-10.58,37.76h-4.1a44.22,44.22,0,0,1,27.75-50.78l2,3.53A40,40,0,0,0,103,91.75Z"/><path class="cls-1" d="M114,102.71a24.56,24.56,0,0,0-5.27,26.8h-5.33A29.47,29.47,0,0,1,123.5,91.59l2.59,4.5A24.41,24.41,0,0,0,114,102.71Z"/><path class="cls-1" d="M71.88,120a43.25,43.25,0,0,1-1,9.48h-4.1a40,40,0,0,0-26.1-47.38l2-3.53A44,44,0,0,1,71.88,120Z"/><path class="cls-1" d="M57.38,120a28.87,28.87,0,0,1-1.57,9.48H50.47A24.51,24.51,0,0,0,32.67,96l2.62-4.52A29.49,29.49,0,0,1,57.38,120Z"/><path class="cls-1" d="M107.7,64.23a44,44,0,0,1-56.44-.42l2-3.54a40,40,0,0,0,52.37.43Z"/><path class="cls-1" d="M100.3,51.4a29.51,29.51,0,0,1-41.61-.48l2.62-4.54c.35.41.72.8,1.1,1.18a24.5,24.5,0,0,0,34.64,0h0c.22-.22.43-.44.64-.67Z"/><g id="Layer_3" data-name="Layer 3"><path class="cls-1" d="M142.26,120a11,11,0,1,1-11-11A11,11,0,0,1,142.26,120Z"/><path class="cls-1" d="M38.85,120a11,11,0,1,1-11-11A11,11,0,0,1,38.85,120Z"/><path class="cls-1" d="M90.7,30.25a11,11,0,1,1-11-11A11,11,0,0,1,90.7,30.25Z"/></g></svg>`;
+				markerSvg = `<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 159.12 145.78"><defs><style>.cls-1{fill:#000000;}</style></defs><path class="cls-1" d="M103,91.75a40.09,40.09,0,0,0-10.58,37.76h-4.1a44.22,44.22,0,0,1,27.75-50.78l2,3.53A40,40,0,0,0,103,91.75Z"/><path class="cls-1" d="M114,102.71a24.56,24.56,0,0,0-5.27,26.8h-5.33A29.47,29.47,0,0,1,123.5,91.59l2.59,4.5A24.41,24.41,0,0,0,114,102.71Z"/><path class="cls-1" d="M71.88,120a43.25,43.25,0,0,1-1,9.48h-4.1a40,40,0,0,0-26.1-47.38l2-3.53A44,44,0,0,1,71.88,120Z"/><path class="cls-1" d="M57.38,120a28.87,28.87,0,0,1-1.57,9.48H50.47A24.51,24.51,0,0,0,32.67,96l2.62-4.52A29.49,29.49,0,0,1,57.38,120Z"/><path class="cls-1" d="M107.7,64.23a44,44,0,0,1-56.44-.42l2-3.54a40,40,0,0,0,52.37.43Z"/><path class="cls-1" d="M100.3,51.4a29.51,29.51,0,0,1-41.61-.48l2.62-4.54c.35.41.72.8,1.1,1.18a24.5,24.5,0,0,0,34.64,0h0c.22-.22.43-.44.64-.67Z"/><g id="Layer_3" data-name="Layer 3"><path class="cls-1" d="M142.26,120a11,11,0,1,1-11-11A11,11,0,0,1,142.26,120Z"/><path class="cls-1" d="M38.85,120a11,11,0,1,1-11-11A11,11,0,0,1,38.85,120Z"/><path class="cls-1" d="M90.7,30.25a11,11,0,1,1-11-11A11,11,0,0,1,90.7,30.25Z"/></g></svg>`;
 			}
 
 			star = new L.Marker.SVGMarker([lat, lng], {
@@ -640,7 +643,7 @@ function wrapper(plugin_info) {
 			alert("Cannot save a route with no portals.")
 			return;
 		}
-		
+
 		const today  = new Date();
 		const routeName = prompt("Please provide a name for this route", "New Route " + today.toLocaleString());
 		const routeId = uuidv4();
@@ -808,6 +811,7 @@ function wrapper(plugin_info) {
 					 <p><label for="textGridWidth">Grid Line Thickness</label><br><input type="text" id="textGridWidth" /></p>
 					 <p><label for="colorHighlight">Portal Highlight Color</label><br><input type="color" id="colorHighlight" /></p>
 					 <p><label for="cbKeyRange">Display theoretical key range</label><br><input type="checkbox" id="cbKeyRange" /></p>
+					 <p><label for="textKeyRangeDist">Key range distance</label><br><input type="text" id="textKeyRangeDist" /></p>
 					 <p><label for="cbShowOneWay">Display one-way jumps</label><br><input type="checkbox" id="cbShowOneWay" /></p>
 					 <p><label for="cbInvertMarker">Invert route marker</label><br><input type="checkbox" id="cbInvertMarker" /></p>
 					 <label for="selectCalculationType">Calculation Method</label><br>
@@ -880,6 +884,13 @@ function wrapper(plugin_info) {
 			saveSettings();
 		});
 
+		const textKeyRangeDistStr = div.querySelector("#textKeyRangeDist");
+		textKeyRangeDistStr.value = settings.keyRangeDist;
+		textKeyRangeDistStr.addEventListener("change", (e) => {
+			settings.keyRangeDist = textKeyRangeDistStr.value;
+			saveSettings();
+		});
+
 		const showOneWayCB = div.querySelector("#cbShowOneWay");
 		showOneWayCB.checked = settings.showOneWay;
 		showOneWayCB.addEventListener("change", (e) => {
@@ -933,14 +944,17 @@ function wrapper(plugin_info) {
 				const calcMethod = calculationMethods[settings.calculationMethod];
 				if (p) {
 					const coord = new LatLng(p._latlng.lat, p._latlng.lng);
+					console.log(typeof calcMethod["radius"]);
 					portalDroneIndicator = L.circle(coord, calcMethod["radius"],
 						{ fill: false, color: settings.circleColor, weight: settings.circleWidth, interactive: false }
 					)
 					dGridLayerGroup.addLayer(portalDroneIndicator);
+					console.log(settings.keyRange);
 					if (settings.keyRange) {
-						portalDroneIndicatorKey = L.circle(coord, THEORETICAL_KEY_RANGE,
-						{ fill: false, color: settings.circleColor, weight: settings.circleWidth, interactive: false }
-					)
+						console.log(typeof Number(settings.keyRangeDist));
+						portalDroneIndicatorKey = L.circle(coord, Number(settings.keyRangeDist),
+						{ fill: false, color: settings.circleColor, weight: settings.circleWidth, interactive: false });
+						console.log(portalDroneIndicatorKey);
 						dGridLayerGroup.addLayer(portalDroneIndicatorKey);
 					}
 				}
