@@ -2,7 +2,7 @@
 // @id dronePathTravelPlanner
 // @name IITC Plugin: Drone Travel Path Planner
 // @category Tweaks
-// @version 0.15.4
+// @version 0.15.5
 // @namespace	https://github.com/tehstone/IngressDronePath
 // @downloadURL	https://github.com/tehstone/IngressDronePath/raw/master/dronePathTravelPlanner.user.js
 // @homepageURL	https://github.com/tehstone/IngressDronePath
@@ -25,7 +25,7 @@ function wrapper(plugin_info) {
 
 	const KEY_SETTINGS = "plugin-drone-path-planner-settings";
 	const KEY_ROUTES = "plugin-drone-path-planner-routes"
-	const THEORETICAL_KEY_RANGE = 1250;
+	const THEORETICAL_KEY_RANGE = "1250";
 
 	// Use own namespace for plugin
 	window.plugin.DronePathTravelPlanner = function () {};
@@ -87,6 +87,7 @@ function wrapper(plugin_info) {
 		calculationMethod: "500/16",
 		portalHighlight: "#f228ef",
 		keyRange: false,
+		keyRangeDist: 1250,
 		showOneWay: true,
 	};
 
@@ -124,9 +125,9 @@ function wrapper(plugin_info) {
 		if (!"invertMarker" in settings) {
 			settings.invertMarker = false
 		}
-		if (!"keyRangeDist" in settings) {
-			settings.keyRangeDist = 1250;
-		}
+		if (!settings.keyRangeDist) {
+			settings.keyRangeDist = "1250";
+		} 
 	}
 
 	window.resetSettings = function() {
@@ -944,17 +945,14 @@ function wrapper(plugin_info) {
 				const calcMethod = calculationMethods[settings.calculationMethod];
 				if (p) {
 					const coord = new LatLng(p._latlng.lat, p._latlng.lng);
-					console.log(typeof calcMethod["radius"]);
 					portalDroneIndicator = L.circle(coord, calcMethod["radius"],
 						{ fill: false, color: settings.circleColor, weight: settings.circleWidth, interactive: false }
 					)
 					dGridLayerGroup.addLayer(portalDroneIndicator);
 					console.log(settings.keyRange);
 					if (settings.keyRange) {
-						console.log(typeof Number(settings.keyRangeDist));
 						portalDroneIndicatorKey = L.circle(coord, Number(settings.keyRangeDist),
 						{ fill: false, color: settings.circleColor, weight: settings.circleWidth, interactive: false });
-						console.log(portalDroneIndicatorKey);
 						dGridLayerGroup.addLayer(portalDroneIndicatorKey);
 					}
 				}
